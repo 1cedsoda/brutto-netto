@@ -131,8 +131,9 @@ export default function Calculator() {
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(320px,380px)_1fr]">
             <div className="lg:sticky lg:top-6 lg:self-start">
               <Card>
-                <CardHeader className="flex-row flex-wrap items-center gap-2 pb-3">
-                  <CardTitle className="text-base">{t("action.inputs")}</CardTitle>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-1">
+                  <CardTitle className="mr-auto text-base">{t("action.inputs")}</CardTitle>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -149,6 +150,7 @@ export default function Calculator() {
                   >
                     <Undo2 className="mr-1 h-3 w-3" /> {t("action.reset")}
                   </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <ScenarioForm key={`A-${formVersion}`} scenarioKey="A" />

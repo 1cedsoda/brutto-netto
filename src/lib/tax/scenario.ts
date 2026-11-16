@@ -72,8 +72,15 @@ export function classifyJobs(
   const jobs = s.jobs;
   const out: JobTreatment[] = jobs.map((j) => (j.kind === "self" ? "self" : "side"));
 
-  const employees = jobs.map((j, i) => (j.kind === "employee" ? i : -1)).filter((i) => i >= 0);
-  const minijobs = jobs.map((j, i) => (j.kind === "minijob" ? i : -1)).filter((i) => i >= 0);
+  // A "Minijob" above the Geringfügigkeitsgrenze is no Minijob: it is treated
+  // like a regular employment.
+  const overLimit = (j: Job) => annualOf(s, j) / 12 > C.minijobLimit + 0.005;
+  const employees = jobs
+    .map((j, i) => (j.kind === "employee" || (j.kind === "minijob" && overLimit(j)) ? i : -1))
+    .filter((i) => i >= 0);
+  const minijobs = jobs
+    .map((j, i) => (j.kind === "minijob" && !overLimit(j) ? i : -1))
+    .filter((i) => i >= 0);
 
   if (employees.length > 0) {
     employees.forEach((i, n) => (out[i] = n === 0 ? "main" : "side"));

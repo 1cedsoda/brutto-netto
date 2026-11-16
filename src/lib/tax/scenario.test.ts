@@ -167,3 +167,15 @@ describe("employment + self-employment", () => {
     expect(r.total.meta.proposal).toBe(false);
   });
 });
+
+describe("Minijob above the limit", () => {
+  it("is a regular employment, not capped", () => {
+    const r = sc([job("employee", 4300), job("minijob", 6150)]);
+    expect(r.jobs[1].treatment).toBe("side");
+    expect(r.jobs[1].result.gross.monthly).toBe(6150);
+    expect(r.jobs[1].result.employerSocial.pauschsteuer.yearly).toBe(0);
+  });
+  it("alone it becomes the main employment", () => {
+    expect(sc([job("minijob", 1200)]).jobs[0].treatment).toBe("midijob");
+  });
+});

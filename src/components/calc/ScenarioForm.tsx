@@ -69,7 +69,7 @@ function Section({
   resetLabel?: string;
 }) {
   return (
-    <section className="grid gap-3">
+    <section className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3">
       <div className="flex min-h-6 items-center justify-between gap-2">
         <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
           {title}
@@ -161,7 +161,10 @@ export function ScenarioForm({ scenarioKey }: { scenarioKey: ScenarioKey }) {
   });
 
   return (
-    <form className="grid gap-5" onSubmit={(e) => e.preventDefault()}>
+    <form
+      className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-5"
+      onSubmit={(e) => e.preventDefault()}
+    >
       {/* ── Person & Steuer ───────────────────────────────────── */}
       <Section title={t("sec.personTax")} {...reset("personTax")}>
         <form.Field name="year">
@@ -281,6 +284,151 @@ export function ScenarioForm({ scenarioKey }: { scenarioKey: ScenarioKey }) {
 
       <Separator />
 
+      {/* ── Sozialversicherung ────────────────────────────────── */}
+      <Section title={t("sec.social")} {...reset("social")}>
+        <form.Field name="health.kind">
+          {(field) => (
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">
+                {t("f.health")}
+              </Label>
+              <Select
+                value={field.state.value}
+                onValueChange={(v) => field.handleChange(v as HealthInsuranceKind)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {HEALTH_KINDS.map((h) => (
+                    <SelectItem key={h.value} value={h.value}>
+                      {t(h.key)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </form.Field>
+
+        <form.Subscribe selector={(s) => s.values.health.kind}>
+          {(kind) =>
+            kind === "gkv" ? (
+              <>
+                <form.Field name="health.fundId">
+                  {(field) => (
+                    <div className="grid gap-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground">
+                        {t("f.fund")}
+                      </Label>
+                      <Select
+                        value={field.state.value ?? "average"}
+                        onValueChange={(v) => {
+                          field.handleChange(v);
+                          const fund = KRANKENKASSEN.find((k) => k.id === v);
+                          if (fund && v !== "custom") {
+                            form.setFieldValue("health.zusatzbeitragPct", fund.zusatz);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {KRANKENKASSEN.map((k) => (
+                            <SelectItem key={k.id} value={k.id}>
+                              {k.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </form.Field>
+                <form.Field name="health.zusatzbeitragPct">
+                  {(field) => (
+                    <SliderInput
+                      id={id("zusatz")}
+                      label={t("f.zusatz")}
+                      value={field.state.value}
+                      onChange={(v) => {
+                        field.handleChange(v);
+                        form.setFieldValue("health.fundId", "custom");
+                      }}
+                      min={0}
+                      max={5}
+                      step={0.1}
+                      suffix="%"
+                    />
+                  )}
+                </form.Field>
+              </>
+            ) : (
+              <>
+                <form.Field
+                  name="health.privateMonthlyPremium"
+                  validators={{
+                    onChange: ({ value }) =>
+                      value <= 0 ? t("err.premium") : undefined,
+                  }}
+                >
+                  {(field) => (
+                    <div>
+                      <SliderInput
+                        id={id("premium")}
+                        label={t("f.premium")}
+                        value={field.state.value}
+                        onChange={field.handleChange}
+                        min={0}
+                        max={2000}
+                        step={10}
+                        suffix="€"
+                        hint={
+                          kind === "pkv_zuschuss"
+                            ? t("hint.zuschuss")
+                            : t("hint.noZuschuss")
+                        }
+                      />
+                      <FieldError errors={field.state.meta.errors} />
+                    </div>
+                  )}
+                </form.Field>
+                <form.Field name="health.basisPct">
+                  {(field) => (
+                    <SliderInput
+                      id={id("basis")}
+                      label={t("f.basis")}
+                      value={field.state.value}
+                      onChange={(v) => field.handleChange(Math.round(v))}
+                      min={0}
+                      max={100}
+                      step={1}
+                      suffix="%"
+                      hint={t("hint.basis")}
+                    />
+                  )}
+                </form.Field>
+              </>
+            )
+          }
+        </form.Subscribe>
+
+        {hasEmployment && (
+          <form.Field name="pensionInsured">
+            {(field) => (
+              <SwitchRow
+                id={id("pension")}
+                label={t("f.pension")}
+                checked={field.state.value}
+                onChange={field.handleChange}
+              />
+            )}
+          </form.Field>
+        )}
+      </Section>
+
+      <Separator />
+
       {/* ── Einkommen ─────────────────────────────────────────── */}
       <Section title={t("sec.income")} {...reset("income")}>
         {initial.jobs.map((job, i) => {
@@ -295,12 +443,12 @@ export function ScenarioForm({ scenarioKey }: { scenarioKey: ScenarioKey }) {
           return (
             <div
               key={job.id}
-              className={multi ? "grid gap-3 rounded-lg border p-3" : "grid gap-3"}
+              className={`grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 ${multi ? "rounded-lg border p-3" : ""}`}
             >
               {multi && (
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-baseline gap-2">
-                    <span className="text-sm font-medium">
+                    <span className="shrink-0 whitespace-nowrap text-sm font-medium">
                       {i === 0 ? t("job.main") : `${t("job.n")} ${i + 1}`}
                     </span>
                     {hint && (
@@ -500,151 +648,6 @@ export function ScenarioForm({ scenarioKey }: { scenarioKey: ScenarioKey }) {
           <Plus className="h-3.5 w-3.5" />
           {t("job.add")}
         </Button>
-      </Section>
-
-      <Separator />
-
-      {/* ── Sozialversicherung ────────────────────────────────── */}
-      <Section title={t("sec.social")} {...reset("social")}>
-        <form.Field name="health.kind">
-          {(field) => (
-            <div className="grid gap-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">
-                {t("f.health")}
-              </Label>
-              <Select
-                value={field.state.value}
-                onValueChange={(v) => field.handleChange(v as HealthInsuranceKind)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {HEALTH_KINDS.map((h) => (
-                    <SelectItem key={h.value} value={h.value}>
-                      {t(h.key)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </form.Field>
-
-        <form.Subscribe selector={(s) => s.values.health.kind}>
-          {(kind) =>
-            kind === "gkv" ? (
-              <>
-                <form.Field name="health.fundId">
-                  {(field) => (
-                    <div className="grid gap-1.5">
-                      <Label className="text-xs font-medium text-muted-foreground">
-                        {t("f.fund")}
-                      </Label>
-                      <Select
-                        value={field.state.value ?? "average"}
-                        onValueChange={(v) => {
-                          field.handleChange(v);
-                          const fund = KRANKENKASSEN.find((k) => k.id === v);
-                          if (fund && v !== "custom") {
-                            form.setFieldValue("health.zusatzbeitragPct", fund.zusatz);
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {KRANKENKASSEN.map((k) => (
-                            <SelectItem key={k.id} value={k.id}>
-                              {k.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </form.Field>
-                <form.Field name="health.zusatzbeitragPct">
-                  {(field) => (
-                    <SliderInput
-                      id={id("zusatz")}
-                      label={t("f.zusatz")}
-                      value={field.state.value}
-                      onChange={(v) => {
-                        field.handleChange(v);
-                        form.setFieldValue("health.fundId", "custom");
-                      }}
-                      min={0}
-                      max={5}
-                      step={0.1}
-                      suffix="%"
-                    />
-                  )}
-                </form.Field>
-              </>
-            ) : (
-              <>
-                <form.Field
-                  name="health.privateMonthlyPremium"
-                  validators={{
-                    onChange: ({ value }) =>
-                      value <= 0 ? t("err.premium") : undefined,
-                  }}
-                >
-                  {(field) => (
-                    <div>
-                      <SliderInput
-                        id={id("premium")}
-                        label={t("f.premium")}
-                        value={field.state.value}
-                        onChange={field.handleChange}
-                        min={0}
-                        max={2000}
-                        step={10}
-                        suffix="€"
-                        hint={
-                          kind === "pkv_zuschuss"
-                            ? t("hint.zuschuss")
-                            : t("hint.noZuschuss")
-                        }
-                      />
-                      <FieldError errors={field.state.meta.errors} />
-                    </div>
-                  )}
-                </form.Field>
-                <form.Field name="health.basisPct">
-                  {(field) => (
-                    <SliderInput
-                      id={id("basis")}
-                      label={t("f.basis")}
-                      value={field.state.value}
-                      onChange={(v) => field.handleChange(Math.round(v))}
-                      min={0}
-                      max={100}
-                      step={1}
-                      suffix="%"
-                      hint={t("hint.basis")}
-                    />
-                  )}
-                </form.Field>
-              </>
-            )
-          }
-        </form.Subscribe>
-
-        {hasEmployment && (
-          <form.Field name="pensionInsured">
-            {(field) => (
-              <SwitchRow
-                id={id("pension")}
-                label={t("f.pension")}
-                checked={field.state.value}
-                onChange={field.handleChange}
-              />
-            )}
-          </form.Field>
-        )}
       </Section>
     </form>
   );
