@@ -7,6 +7,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, Plus, RotateCcw, X } from "lucide-react";
 import { classifyJobs } from "@/lib/tax/scenario";
@@ -57,40 +58,82 @@ function Row({ children }: { children: React.ReactNode }) {
   return <div className="grid grid-cols-2 gap-3">{children}</div>;
 }
 
-function Section({
+/** A form block: its own card (single view) or a plain section (compare view). */
+function Panel({
+  cards,
   title,
+  subtitle,
+  actions,
   children,
-  onReset,
-  resetLabel,
 }: {
+  cards: boolean;
   title: string;
+  subtitle?: string | null;
+  actions?: React.ReactNode;
   children: React.ReactNode;
-  onReset?: () => void;
-  resetLabel?: string;
+}) {
+  if (!cards) {
+    return (
+      <section className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3">
+        <div className="flex min-h-6 items-center justify-between gap-2">
+          <div className="flex min-w-0 items-baseline gap-2">
+            <h3 className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+              {title}
+            </h3>
+            {subtitle && (
+              <span className="truncate text-[11px] text-muted-foreground">{subtitle}</span>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center">{actions}</div>
+        </div>
+        {children}
+      </section>
+    );
+  }
+  return (
+    <Card className="min-w-0 gap-3">
+      <CardHeader className="pb-0">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-base">{title}</CardTitle>
+            {subtitle && (
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{subtitle}</p>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center">{actions}</div>
+        </div>
+      </CardHeader>
+      <CardContent className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3">{children}</CardContent>
+    </Card>
+  );
+}
+
+function ResetButton({
+  label,
+  text,
+  onClick,
+  compact,
+}: {
+  /** accessible label, e.g. "Person & Steuer: Zurücksetzen" */
+  label: string;
+  /** visible text */
+  text?: string;
+  onClick: () => void;
+  compact?: boolean;
 }) {
   return (
-    <section className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3">
-      <div className="flex min-h-6 items-center justify-between gap-2">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
-          {title}
-        </h3>
-        {onReset && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-6 gap-1 px-1.5 text-[11px] font-normal text-muted-foreground hover:text-foreground"
-            onClick={onReset}
-            title={resetLabel}
-            aria-label={`${title}: ${resetLabel}`}
-          >
-            <RotateCcw className="h-3 w-3" />
-            {resetLabel}
-          </Button>
-        )}
-      </div>
-      {children}
-    </section>
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="h-6 gap-1 px-1.5 text-[11px] font-normal text-muted-foreground hover:text-foreground"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+    >
+      <RotateCcw className="h-3 w-3" />
+      {!compact && (text ?? label)}
+    </Button>
   );
 }
 
@@ -121,7 +164,14 @@ function FieldError({ errors }: { errors: unknown[] }) {
   return <p className="text-[11px] text-destructive">{String(msg)}</p>;
 }
 
-export function ScenarioForm({ scenarioKey }: { scenarioKey: ScenarioKey }) {
+export function ScenarioForm({
+  scenarioKey,
+  cards = false,
+}: {
+  scenarioKey: ScenarioKey;
+  /** Render each block as its own card (single view). */
+  cards?: boolean;
+}) {
   const t = useT();
   const lang = useCalcStore((s) => s.lang);
   const setScenario = useCalcStore((s) => s.setScenario);
@@ -155,18 +205,23 @@ export function ScenarioForm({ scenarioKey }: { scenarioKey: ScenarioKey }) {
     return `${total.toLocaleString(lang === "de" ? "de-DE" : "en-US", { maximumFractionDigits: 2 })} %`;
   };
   const resetSection = useCalcStore((s) => s.resetSection);
-  const reset = (section: FormSection) => ({
-    onReset: () => resetSection(scenarioKey, section),
-    resetLabel: t("action.resetSection"),
-  });
+  const resetJob = useCalcStore((s) => s.resetJob);
+  const reset = (section: FormSection, title: string) => (
+    <ResetButton
+      label={`${title}: ${t("action.resetSection")}`}
+      text={t("action.resetSection")}
+      onClick={() => resetSection(scenarioKey, section)}
+    />
+  );
+  const sep = cards ? null : <Separator />;
 
   return (
     <form
-      className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-5"
+      className={`grid min-w-0 grid-cols-[minmax(0,1fr)] ${cards ? "gap-4" : "gap-5"}`}
       onSubmit={(e) => e.preventDefault()}
     >
       {/* ── Person & Steuer ───────────────────────────────────── */}
-      <Section title={t("sec.personTax")} {...reset("personTax")}>
+      <Panel cards={cards} title={t("sec.personTax")} actions={reset("personTax", t("sec.personTax"))}>
         <form.Field name="year">
           {(field) => (
             <div className="flex items-center justify-between gap-2">
@@ -280,12 +335,12 @@ export function ScenarioForm({ scenarioKey }: { scenarioKey: ScenarioKey }) {
             />
           )}
         </form.Field>
-      </Section>
+      </Panel>
 
-      <Separator />
+      {sep}
 
       {/* ── Sozialversicherung ────────────────────────────────── */}
-      <Section title={t("sec.social")} {...reset("social")}>
+      <Panel cards={cards} title={t("sec.social")} actions={reset("social", t("sec.social"))}>
         <form.Field name="health.kind">
           {(field) => (
             <div className="grid gap-1.5">
@@ -425,49 +480,25 @@ export function ScenarioForm({ scenarioKey }: { scenarioKey: ScenarioKey }) {
             )}
           </form.Field>
         )}
-      </Section>
+      </Panel>
 
-      <Separator />
+      {sep}
 
-      {/* ── Einkommen ─────────────────────────────────────────── */}
-      <Section title={t("sec.income")} {...reset("income")}>
-        {initial.jobs.map((job, i) => {
+      {/* ── Einkommen / Jobs ──────────────────────────────────── */}
+      {(() => {
+        const multi = initial.jobs.length > 1;
+        const jobs = initial.jobs.map((job, i) => {
           const treatment = treatments[i];
-          const multi = initial.jobs.length > 1;
-          const overLimit = job.kind === "minijob" && treatment !== "minijob" && treatment !== "minijob-combined";
+          const overLimit =
+            job.kind === "minijob" && treatment !== "minijob" && treatment !== "minijob-combined";
           const hint = overLimit
             ? t("treat.minijobOver")
             : multi || treatment === "midijob"
               ? t(`treat.${treatment}` as Key)
               : null;
-          return (
-            <div
-              key={job.id}
-              className={`grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 ${multi ? "rounded-lg border p-3" : ""}`}
-            >
-              {multi && (
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-baseline gap-2">
-                    <span className="shrink-0 whitespace-nowrap text-sm font-medium">
-                      {i === 0 ? t("job.main") : `${t("job.n")} ${i + 1}`}
-                    </span>
-                    {hint && (
-                      <span className="truncate text-[11px] text-muted-foreground">{hint}</span>
-                    )}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                    onClick={() => removeJob(scenarioKey, job.id)}
-                    title={t("job.remove")}
-                    aria-label={t("job.remove")}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              )}
+          const title = i === 0 ? t("job.main") : `${t("job.n")} ${i + 1}`;
+          const content = (
+            <>
               <ToggleGroup
                 type="single"
                 value={job.kind}
@@ -487,9 +518,6 @@ export function ScenarioForm({ scenarioKey }: { scenarioKey: ScenarioKey }) {
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
-              {!multi && hint && (
-                <p className="-mt-1 text-[11px] text-muted-foreground">{hint}</p>
-              )}
 
               <form.Field
                 name={`jobs[${i}].grossAmount`}
@@ -632,23 +660,83 @@ export function ScenarioForm({ scenarioKey }: { scenarioKey: ScenarioKey }) {
                   </div>
                 </details>
               )}
+            </>
+          );
+          const actions = (
+            <>
+              <ResetButton
+                compact
+                label={`${title}: ${t("action.resetSection")}`}
+                onClick={() => resetJob(scenarioKey, job.id)}
+              />
+              {multi && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  onClick={() => removeJob(scenarioKey, job.id)}
+                  title={t("job.remove")}
+                  aria-label={`${title}: ${t("job.remove")}`}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </>
+          );
+          if (cards) {
+            return (
+              <Panel key={job.id} cards title={title} subtitle={hint} actions={actions}>
+                {content}
+              </Panel>
+            );
+          }
+          return (
+            <div
+              key={job.id}
+              className={`grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 ${multi ? "rounded-lg border p-3" : ""}`}
+            >
+              {(multi || hint) && (
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-baseline gap-2">
+                    {multi && (
+                      <span className="shrink-0 whitespace-nowrap text-sm font-medium">{title}</span>
+                    )}
+                    {hint && <span className="truncate text-[11px] text-muted-foreground">{hint}</span>}
+                  </div>
+                  {multi && <div className="flex shrink-0 items-center">{actions}</div>}
+                </div>
+              )}
+              {content}
             </div>
           );
-        })}
-
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="w-full gap-1.5 border-dashed text-xs font-normal text-muted-foreground"
-          onClick={() =>
-            addJob(scenarioKey, initial.jobs.some((j) => j.kind === "minijob") ? "employee" : "minijob")
-          }
-        >
-          <Plus className="h-3.5 w-3.5" />
-          {t("job.add")}
-        </Button>
-      </Section>
+        });
+        const addButton = (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full gap-1.5 border-dashed text-xs font-normal text-muted-foreground"
+            onClick={() =>
+              addJob(scenarioKey, initial.jobs.some((j) => j.kind === "minijob") ? "employee" : "minijob")
+            }
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {t("job.add")}
+          </Button>
+        );
+        return cards ? (
+          <>
+            {jobs}
+            {addButton}
+          </>
+        ) : (
+          <Panel cards={false} title={t("sec.income")} actions={reset("income", t("sec.income"))}>
+            {jobs}
+            {addButton}
+          </Panel>
+        );
+      })()}
     </form>
   );
 }

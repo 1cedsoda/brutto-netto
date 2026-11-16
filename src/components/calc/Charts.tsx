@@ -177,7 +177,8 @@ export function BreakdownDonut({
   };
 
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-[220px]">
+    <div className="grid gap-3">
+    <div className="relative mx-auto aspect-square w-full max-w-[200px]">
       <ChartContainer config={config} className="aspect-square h-full w-full">
         <PieChart>
           <ChartTooltip
@@ -209,6 +210,7 @@ export function BreakdownDonut({
             strokeWidth={1}
             label={renderPieLabel}
             labelLine={false}
+            isAnimationActive={false}
           >
             {slices.map((s) => (
               <Cell key={s.key} fill={s.color} />
@@ -225,6 +227,19 @@ export function BreakdownDonut({
           {period === "monthly" ? t("m.perMonth") : t("m.perYear")}
         </span>
       </div>
+    </div>
+    <ul className="grid gap-1 text-xs">
+      {slices.map((s) => (
+        <li key={s.key} className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ background: s.color }} />
+          <span className="text-muted-foreground">{s.label}</span>
+          <span className="ml-auto font-mono tabular-nums">{formatEUR(s.value)}</span>
+          <span className="w-9 text-right text-[10px] text-muted-foreground">
+            {formatShare(s.value, total)}
+          </span>
+        </li>
+      ))}
+    </ul>
     </div>
   );
 }

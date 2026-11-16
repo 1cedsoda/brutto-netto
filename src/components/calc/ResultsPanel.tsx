@@ -2,10 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Info } from "lucide-react";
-import { CompositionBar, BreakdownDonut } from "./Charts";
+import { BreakdownDonut } from "./Charts";
 import { MoneyPair } from "./Money";
 import { useScenarioResult } from "./shared";
-import { JobsBreakdown } from "./JobsBreakdown";
+import { JobsTable } from "./JobsBreakdown";
 import { useCalcStore, type ScenarioKey, type DisplayPeriod } from "@/lib/store";
 import { formatPct, formatShare } from "@/lib/format";
 import { useT, useLabel } from "@/lib/i18n";
@@ -231,51 +231,51 @@ export function ResultsPanel({ scenarioKey }: { scenarioKey: ScenarioKey }) {
         )}
       </div>
 
-      {(scenarioResult.jobs.length > 1 || scenarioResult.annual) && (
-        <JobsBreakdown res={scenarioResult} primary={primary} />
-      )}
-
-      {/* Flow bar (full chain) */}
+      {/* Overview: composition donut + burden curve side by side */}
       <Card>
-        <CardHeader className="flex-row items-center justify-between pb-3">
-          <CardTitle className="text-base">{t(result.meta.selfEmployed ? "r.flowTitleSelf" : "r.flowTitle")}</CardTitle>
-          <div className="flex items-center gap-2">
-            {result.meta.approximate && (
-              <Badge variant="outline" className="gap-1 text-amber-600">
-                <Info className="h-3 w-3" /> {t("r.approx")}
-              </Badge>
-            )}
-            {result.meta.provisional && (
-              <Badge
-                variant="outline"
-                className="gap-1 text-amber-600"
-                title={t("r.provisionalHint")}
-              >
-                <Info className="h-3 w-3" /> {t("r.provisional")}
-              </Badge>
-            )}
-            <Badge variant="secondary">{result.meta.year}</Badge>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base">
+              {t(result.meta.selfEmployed ? "r.flowTitleSelf" : "r.flowTitle")}
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {result.meta.approximate && (
+                <Badge variant="outline" className="gap-1 text-amber-600">
+                  <Info className="h-3 w-3" /> {t("r.approx")}
+                </Badge>
+              )}
+              {result.meta.provisional && (
+                <Badge
+                  variant="outline"
+                  className="gap-1 text-amber-600"
+                  title={t("r.provisionalHint")}
+                >
+                  <Info className="h-3 w-3" /> {t("r.provisional")}
+                </Badge>
+              )}
+              <Badge variant="secondary">{result.meta.year}</Badge>
+            </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <CompositionBar result={result} period={primary} />
+        <CardContent className="grid gap-6 md:grid-cols-[200px_minmax(0,1fr)] md:items-center">
+          <BreakdownDonut result={result} period={primary} />
+          <ProgressionChart scenarioKey={scenarioKey} />
         </CardContent>
       </Card>
 
-      {/* Unified breakdown panel: donut + table, then progression curve */}
+      {/* The one breakdown table */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">{t(result.meta.selfEmployed ? "r.breakdownTitleSelf" : "r.breakdownTitle")}</CardTitle>
+          <CardTitle className="text-base">
+            {t(result.meta.selfEmployed ? "r.breakdownTitleSelf" : "r.breakdownTitle")}
+          </CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-6">
-          <div className="grid gap-6 md:grid-cols-[220px_1fr] md:items-center">
-            <BreakdownDonut result={result} period={primary} />
-            <div>
-              <UnifiedTable result={result} primary={primary} />
-            </div>
-          </div>
-          <Separator />
-          <ProgressionChart scenarioKey={scenarioKey} />
+        <CardContent>
+          {scenarioResult.jobs.length > 1 ? (
+            <JobsTable res={scenarioResult} primary={primary} />
+          ) : (
+            <UnifiedTable result={result} primary={primary} />
+          )}
         </CardContent>
       </Card>
     </div>

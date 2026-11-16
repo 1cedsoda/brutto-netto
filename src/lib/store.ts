@@ -153,6 +153,8 @@ interface CalcState {
   /** Add a further job (amount in the scenario's period). */
   addJob: (key: ScenarioKey, kind?: JobKind) => void;
   removeJob: (key: ScenarioKey, id: string) => void;
+  /** Reset one job's amount and employer levies (keeps its kind). */
+  resetJob: (key: ScenarioKey, id: string) => void;
   setJobKind: (key: ScenarioKey, id: string, kind: JobKind) => void;
   /** Reset the fields of a single form section to their defaults. */
   resetSection: (key: ScenarioKey, section: FormSection) => void;
@@ -209,6 +211,25 @@ export const useCalcStore = create<CalcState>()(
             [prop]: { ...sc, jobs: sc.jobs.filter((j) => j.id !== id) },
             formVersion: s.formVersion + 1,
           };
+        }),
+      resetJob: (key, id) =>
+        set((s) => {
+          const prop = key === "A" ? "scenarioA" : "scenarioB";
+          const sc = s[prop];
+          const f = sc.grossPeriod === "yearly" ? 12 : 1;
+          const jobs = sc.jobs.map((j, i) =>
+            j.id !== id
+              ? j
+              : {
+                  ...j,
+                  grossAmount:
+                    (i === 0 && j.kind === "employee"
+                      ? defaultScenario.jobs[0].grossAmount
+                      : ADD_JOB_MONTHLY[j.kind]) * f,
+                  employer: { ...defaultEmployer },
+                },
+          );
+          return { [prop]: { ...sc, jobs }, formVersion: s.formVersion + 1 };
         }),
       setJobKind: (key, id, kind) =>
         set((s) => {

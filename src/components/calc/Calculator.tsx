@@ -129,33 +129,29 @@ export default function Calculator() {
           <CompareView />
         ) : (
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(320px,380px)_1fr]">
-            <div className="lg:sticky lg:top-6 lg:self-start">
-              <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-1">
-                  <CardTitle className="mr-auto text-base">{t("action.inputs")}</CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs text-muted-foreground"
-                    onClick={() => reset("A")}
-                  >
-                    <RotateCcw className="mr-1 h-3 w-3" /> {t("action.defaults")}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs text-muted-foreground"
-                    onClick={() => clear("A")}
-                  >
-                    <Undo2 className="mr-1 h-3 w-3" /> {t("action.reset")}
-                  </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <ScenarioForm key={`A-${formVersion}`} scenarioKey="A" />
-                </CardContent>
-              </Card>
+            <div className="grid min-w-0 gap-4">
+              <div className="flex items-center gap-1">
+                <h2 className="mr-auto text-sm font-medium text-muted-foreground">
+                  {t("action.inputs")}
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground"
+                  onClick={() => reset("A")}
+                >
+                  <RotateCcw className="mr-1 h-3 w-3" /> {t("action.defaults")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground"
+                  onClick={() => clear("A")}
+                >
+                  <Undo2 className="mr-1 h-3 w-3" /> {t("action.reset")}
+                </Button>
+              </div>
+              <ScenarioForm key={`A-${formVersion}`} scenarioKey="A" cards />
             </div>
             <ResultsPanel scenarioKey="A" />
           </div>
