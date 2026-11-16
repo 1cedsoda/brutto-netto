@@ -109,8 +109,9 @@ export function JobsTable({ res, primary }: { res: ScenarioResult; primary: Disp
       type: "row",
       label: a.balance >= 0 ? t("annual.due") : t("annual.refund"),
       cells: rs.map(() => null),
-      total: -a.balance,
-      sign: a.balance >= 0 ? "minus" : "plus",
+      // Nachzahlung lowers the net (−), Erstattung raises it (+).
+      total: a.balance,
+      sign: "minus",
       always: true,
     });
     rows.push({ type: "sep" });

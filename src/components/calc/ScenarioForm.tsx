@@ -197,6 +197,7 @@ export function ScenarioForm({
   const treatments = classifyJobs(live);
   const monthly = initial.grossPeriod === "monthly";
   const hasEmployment = initial.jobs.some((j) => j.kind !== "self");
+  const hasSelf = initial.jobs.some((j) => j.kind === "self");
   const hasOtherSelf = (jobId: string) =>
     initial.jobs.some((j) => j.kind === "self" && j.id !== jobId);
   const levySummary = (job: Job) => {
@@ -480,6 +481,67 @@ export function ScenarioForm({
             )}
           </form.Field>
         )}
+        {hasSelf && (
+        <form.Subscribe selector={(s) => s.values.rvCommission}>
+          {(rvCommission) => (
+  <div
+    className={`grid gap-2 rounded-md border ${
+      rvCommission ? "border-amber-500/40 bg-amber-500/5 p-3" : ""
+    }`}
+  >
+    <form.Field name="rvCommission">
+      {(field) => (
+        <div className={`flex items-center justify-between gap-3 ${rvCommission ? "" : "px-3 py-2"}`}>
+          <Label htmlFor={id("rvCommission")} className="text-sm">
+            {t("f.rvCommission")}
+          </Label>
+          <Switch
+            id={id("rvCommission")}
+            checked={field.state.value}
+            onCheckedChange={field.handleChange}
+          />
+        </div>
+      )}
+    </form.Field>
+    {rvCommission ? (
+      <>
+        <p className="text-[11px] leading-snug text-amber-700 dark:text-amber-500">
+          {t("se.warning")}
+        </p>
+        <form.Field name="rvProposal">
+          {(field) => (
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">
+                {t("f.rvProposal")}
+              </Label>
+              <Select
+                value={field.state.value}
+                onValueChange={(v) => field.handleChange(v as RvProposal)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RV_PROPOSALS.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>
+                      {t(p.key)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </form.Field>
+      </>
+    ) : (
+      <p className="px-3 pb-2 text-[11px] leading-snug text-muted-foreground">
+        {t("se.currentLaw")}
+      </p>
+    )}
+  </div>
+          )}
+        </form.Subscribe>
+        )}
       </Panel>
 
       {sep}
@@ -554,67 +616,7 @@ export function ScenarioForm({
                 )}
               </form.Field>
 
-              {job.kind === "self" ? (
-                <form.Subscribe selector={(s) => s.values.rvCommission}>
-                  {(rvCommission) => (
-          <div
-            className={`grid gap-2 rounded-md border ${
-              rvCommission ? "border-amber-500/40 bg-amber-500/5 p-3" : ""
-            }`}
-          >
-            <form.Field name="rvCommission">
-              {(field) => (
-                <div className={`flex items-center justify-between gap-3 ${rvCommission ? "" : "px-3 py-2"}`}>
-                  <Label htmlFor={id("rvCommission")} className="text-sm">
-                    {t("f.rvCommission")}
-                  </Label>
-                  <Switch
-                    id={id("rvCommission")}
-                    checked={field.state.value}
-                    onCheckedChange={field.handleChange}
-                  />
-                </div>
-              )}
-            </form.Field>
-            {rvCommission ? (
-              <>
-                <p className="text-[11px] leading-snug text-amber-700 dark:text-amber-500">
-                  {t("se.warning")}
-                </p>
-                <form.Field name="rvProposal">
-                  {(field) => (
-                    <div className="grid gap-1.5">
-                      <Label className="text-xs font-medium text-muted-foreground">
-                        {t("f.rvProposal")}
-                      </Label>
-                      <Select
-                        value={field.state.value}
-                        onValueChange={(v) => field.handleChange(v as RvProposal)}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {RV_PROPOSALS.map((p) => (
-                            <SelectItem key={p.value} value={p.value}>
-                              {t(p.key)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </form.Field>
-              </>
-            ) : (
-              <p className="px-3 pb-2 text-[11px] leading-snug text-muted-foreground">
-                {t("se.currentLaw")}
-              </p>
-            )}
-          </div>
-                  )}
-                </form.Subscribe>
-              ) : (
+              {job.kind === "self" ? null : (
                 <details className="group rounded-md border">
                   <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm">
                     <span>{t("job.employerLevies")}</span>

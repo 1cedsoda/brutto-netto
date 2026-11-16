@@ -96,14 +96,14 @@ function sectionDefaults(section: FormSection, current: ScenarioInput): Partial<
       const f = current.grossPeriod === "yearly" ? 12 : 1;
       return {
         jobs: d.jobs.map((j) => ({ ...j, grossAmount: j.grossAmount * f, employer: { ...j.employer } })),
-        rvCommission: d.rvCommission,
-        rvProposal: d.rvProposal,
       };
     }
     case "social":
       return {
         health: { ...d.health },
         pensionInsured: d.pensionInsured,
+        rvCommission: d.rvCommission,
+        rvProposal: d.rvProposal,
       };
   }
 }

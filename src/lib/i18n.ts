@@ -68,7 +68,7 @@ const de = {
   "f.selfEmployed": "Selbstständig / Gründer:in",
   "f.profit": "Bruttoeinkommen",
   "f.rvProposal": "Rentenbeitrag (Vorschlag)",
-  "f.rvCommission": "Rentenpflicht nach Vorschlag der Rentenkommission",
+  "f.rvCommission": "Rentenpflicht für Selbstständige (Vorschlag Rentenkommission)",
   "se.currentLaw":
     "Aus = geltendes Recht: Die meisten Selbstständigen sind nicht rentenversicherungspflichtig, es wird kein Rentenbeitrag gerechnet.",
   "rv.gruender": "½ Regelbeitrag (Gründung, 3 J.)",
@@ -227,7 +227,7 @@ const en: Record<Key, string> = {
   "f.selfEmployed": "Self-employed / founder",
   "f.profit": "Gross income",
   "f.rvProposal": "Pension contribution (proposal)",
-  "f.rvCommission": "Mandatory pension (pension commission proposal)",
+  "f.rvCommission": "Mandatory pension for self-employed (commission proposal)",
   "se.currentLaw":
     "Off = current law: most self-employed people are not subject to mandatory pension insurance; no pension contribution is applied.",
   "rv.gruender": "½ standard contribution (founders, 3 yrs)",

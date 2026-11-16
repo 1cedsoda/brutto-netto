@@ -11,7 +11,7 @@ import { formatEUR, formatShare } from "@/lib/format";
 import { useT, type Key } from "@/lib/i18n";
 
 // Four high-level destinations of the total employer cost — no AN/AG split.
-const C = {
+export const SLICE_COLORS = {
   net: "#10b981", // emerald
   steuern: "#f59e0b", // amber
   sozial: "#0ea5e9", // sky
@@ -27,6 +27,25 @@ export interface Slice {
 
 function pickField(v: { monthly: number; yearly: number }, p: DisplayPeriod) {
   return p === "monthly" ? v.monthly : v.yearly;
+}
+
+/** Yearly amounts of the four destinations (Netto, Steuern, Sozialabgaben, Umlage). */
+export function burdenParts(result: CalculationResult) {
+  const e = result.employeeSocial;
+  const a = result.employerSocial;
+  return {
+    net: result.net.yearly,
+    steuern: result.tax.total.yearly + a.pauschsteuer.yearly,
+    sozial:
+      e.total.yearly +
+      (result.privateHealthEmployee?.yearly ?? 0) +
+      a.rente.yearly +
+      a.arbeitslosen.yearly +
+      a.kranken.yearly +
+      a.pflege.yearly,
+    umlage: a.insolvenzgeld.yearly + a.u1.yearly + a.u2.yearly + a.unfall.yearly,
+    total: result.employerTotalCost.yearly,
+  };
 }
 
 /**
@@ -59,10 +78,10 @@ function buildSlices(
   const push = (key: string, label: string, value: number, color: string) => {
     if (value > 0.005) out.push({ key, label, value, color });
   };
-  push("net", t("ch.net"), net, C.net);
-  push("steuern", t("ch.steuern"), steuern, C.steuern);
-  push("sozial", t("ch.sozial"), sozial, C.sozial);
-  push("umlage", t("ch.umlage"), umlage, C.umlage);
+  push("net", t("ch.net"), net, SLICE_COLORS.net);
+  push("steuern", t("ch.steuern"), steuern, SLICE_COLORS.steuern);
+  push("sozial", t("ch.sozial"), sozial, SLICE_COLORS.sozial);
+  push("umlage", t("ch.umlage"), umlage, SLICE_COLORS.umlage);
 
   return {
     slices: out,

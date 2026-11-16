@@ -1,12 +1,14 @@
 import { useMemo } from "react";
 import {
+  Area,
   CartesianGrid,
+  ComposedChart,
   Line,
-  LineChart,
   ReferenceLine,
   XAxis,
   YAxis,
 } from "recharts";
+import { SLICE_COLORS, burdenParts } from "./Charts";
 import {
   ChartContainer,
   ChartTooltip,
@@ -35,11 +37,13 @@ export function ProgressionChart({ scenarioKey }: { scenarioKey: ScenarioKey }) 
   const others = scenario.jobs.slice(1).reduce((a, j) => a + j.grossAmount, 0);
   const current = (scenario.jobs[0]?.grossAmount ?? 0) + others;
 
-  const { data, minX, maxX, lowest } = useMemo(() => {
+  const { data, minX, maxX, highest } = useMemo(() => {
     const limit = getConstants(scenario.year).minijobLimit; // €/month
-    const min = (monthly ? limit : limit * 12) + others;
-    const top = (monthly ? 10000 : 120000) + others;
-    const max = Math.max(top, current);
+    // Fixed axis (independent of further jobs): from the Minijob limit up to
+    // 10.000 €/Monat. The main job is varied from the limit upwards, so with
+    // further jobs the curve simply starts further right.
+    const min = monthly ? limit : limit * 12;
+    const max = Math.max(monthly ? 10000 : 120000, current);
     const steps = 60;
 
     const benchScenario: ScenarioInput = {
@@ -47,60 +51,96 @@ export function ProgressionChart({ scenarioKey }: { scenarioKey: ScenarioKey }) 
       year: scenario.year,
       grossPeriod: scenario.grossPeriod,
     };
-    // Burden = (AG total cost − net) / AG total cost.
-    const rateOf = (sc: ScenarioInput, total: number, fixed: number) => {
+    const resultFor = (sc: ScenarioInput, total: number, fixed: number) => {
       const [main, ...rest] = sc.jobs;
-      const r = calculateScenario({
+      return calculateScenario({
         ...sc,
         jobs: [
-          { ...main, kind: main.kind === "minijob" ? "employee" : main.kind, grossAmount: Math.max(0, total - fixed) },
+          {
+            ...main,
+            kind: main.kind === "minijob" ? "employee" : main.kind,
+            grossAmount: Math.max(0, total - fixed),
+          },
           ...rest,
         ],
       }).total;
-      const cost = r.employerTotalCost.monthly;
-      return cost > 0 ? ((cost - r.net.monthly) / cost) * 100 : 0;
     };
+    // Shares of the total cost (AG-Kosten): taxes, social contributions, levies.
+    const pct = (v: number, base: number) => (base > 0 ? (v / base) * 100 : 0);
 
-    const pts: { x: number; rate: number; benchmark: number }[] = [];
-    let lowest = Infinity;
+    const pts: {
+      x: number;
+      steuern: number | null;
+      sozial: number | null;
+      umlage: number | null;
+      rate: number | null;
+      benchmark: number;
+    }[] = [];
+    let highest = 0;
+    const own = (g: number) => {
+      const p = burdenParts(resultFor(scenario, g, others));
+      return {
+        steuern: pct(p.steuern, p.total),
+        sozial: pct(p.sozial, p.total),
+        umlage: pct(p.umlage, p.total),
+      };
+    };
+    const start = min + others; // main job at the Minijob limit
     for (let i = 0; i <= steps; i++) {
       const g = min + ((max - min) / steps) * i; // linear income axis
-      const rate = rateOf(scenario, g, others);
-      const benchmark = rateOf(benchScenario, g, 0);
-      lowest = Math.min(lowest, rate, benchmark);
-      pts.push({ x: g, rate, benchmark });
+      const b = burdenParts(resultFor(benchScenario, g, 0));
+      const benchmark = pct(b.total - b.net, b.total);
+      const mine = g >= start ? own(g) : null;
+      const steuern = mine?.steuern ?? null;
+      const sozial = mine?.sozial ?? null;
+      const umlage = mine?.umlage ?? null;
+      const rate = mine ? mine.steuern + mine.sozial + mine.umlage : null;
+      highest = Math.max(highest, rate ?? 0, benchmark);
+      pts.push({ x: g, steuern, sozial, umlage, rate, benchmark });
     }
-    return { data: pts, minX: min, maxX: max, lowest };
+    return { data: pts, minX: min, maxX: max, highest };
   }, [scenario, monthly, current, others]);
 
-  // Logarithmic Y axis, normally 30–60 %, extended downwards if a curve dips lower.
-  const yMin = Math.max(5, Math.min(30, Math.floor(lowest / 5) * 5));
-  const yTicks = [5, 10, 15, 20, 25, 30, 40, 50, 60].filter(
-    (v) => v >= yMin && v <= 60,
-  );
+  // Linear Y axis from 0 % (stacked areas need a zero baseline).
+  const yMax = Math.min(100, Math.max(60, Math.ceil(highest / 10) * 10));
+  const yTicks = Array.from({ length: yMax / 10 + 1 }, (_, i) => i * 10);
 
   const config: ChartConfig = {
-    rate: { label: t("r.you"), color: "#0ea5e9" },
+    steuern: { label: t("ch.steuern"), color: SLICE_COLORS.steuern },
+    sozial: { label: t("ch.sozial"), color: SLICE_COLORS.sozial },
+    umlage: { label: t("ch.umlage"), color: SLICE_COLORS.umlage },
+    rate: { label: t("r.you"), color: "currentColor" },
     benchmark: { label: t("r.benchmark"), color: "#94a3b8" },
   };
+  const legend: { key: keyof typeof config; dashed?: boolean }[] = [
+    { key: "steuern" },
+    { key: "sozial" },
+    { key: "umlage" },
+    { key: "benchmark", dashed: true },
+  ];
 
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between">
+      <div className="mb-2 grid gap-1">
         <span className="text-sm font-medium">{t("r.progression")}</span>
-        <span className="flex items-center gap-3 text-[11px] text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-3 rounded-[2px]" style={{ background: "#0ea5e9" }} />
-            {t("r.you")}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-3 rounded-[2px]" style={{ background: "#94a3b8" }} />
-            {t("r.benchmark")}
-          </span>
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+          {legend.map(({ key, dashed }) => (
+            <span key={key} className="flex items-center gap-1.5">
+              <span
+                className="h-2 w-3 rounded-[2px]"
+                style={
+                  dashed
+                    ? { borderTop: `2px dashed ${config[key].color}`, height: 0 }
+                    : { background: config[key].color }
+                }
+              />
+              {config[key].label}
+            </span>
+          ))}
         </span>
       </div>
       <ChartContainer config={config} className="!aspect-auto h-[200px] w-full">
-        <LineChart data={data} margin={{ left: 4, right: 10, top: 12, bottom: 0 }}>
+        <ComposedChart data={data} margin={{ left: 4, right: 10, top: 12, bottom: 0 }}>
           <CartesianGrid vertical={false} strokeDasharray="3 3" />
           <XAxis
             dataKey="x"
@@ -114,10 +154,8 @@ export function ProgressionChart({ scenarioKey }: { scenarioKey: ScenarioKey }) 
             minTickGap={24}
           />
           <YAxis
-            scale="log"
-            domain={[yMin, 60]}
+            domain={[0, yMax]}
             ticks={yTicks}
-            allowDataOverflow
             tickFormatter={(v) => `${v} %`}
             width={40}
             tickLine={false}
@@ -131,13 +169,22 @@ export function ProgressionChart({ scenarioKey }: { scenarioKey: ScenarioKey }) 
                   formatEUR0(Number(p?.[0]?.payload?.x ?? 0)) +
                   (monthly ? " / M" : " / J")
                 }
-                formatter={(value, name) => (
+                formatter={(value, name, item) => (
                   <div className="flex w-full items-center justify-between gap-3">
-                    <span className="text-muted-foreground">
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <span
+                        className="h-2 w-2 rounded-[2px]"
+                        style={{ background: config[name as string]?.color }}
+                      />
                       {config[name as string]?.label ?? name}
                     </span>
                     <span className="font-mono font-medium tabular-nums">
                       {formatShare(Number(value), 100)}
+                      {name === "umlage" && (
+                        <span className="ml-2 font-sans text-foreground">
+                          Σ {formatShare(Number(item?.payload?.rate ?? 0), 100)}
+                        </span>
+                      )}
                     </span>
                   </div>
                 )}
@@ -166,15 +213,20 @@ export function ProgressionChart({ scenarioKey }: { scenarioKey: ScenarioKey }) 
             dot={false}
             isAnimationActive={false}
           />
-          <Line
-            dataKey="rate"
-            type="monotone"
-            stroke="var(--color-rate)"
-            strokeWidth={2}
-            dot={false}
-            isAnimationActive={false}
-          />
-        </LineChart>
+          {(["steuern", "sozial", "umlage"] as const).map((k) => (
+            <Area
+              key={k}
+              dataKey={k}
+              stackId="burden"
+              type="monotone"
+              stroke={`var(--color-${k})`}
+              fill={`var(--color-${k})`}
+              fillOpacity={0.55}
+              strokeWidth={1}
+              isAnimationActive={false}
+            />
+          ))}
+        </ComposedChart>
       </ChartContainer>
     </div>
   );
