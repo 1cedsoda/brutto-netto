@@ -180,7 +180,7 @@ export function ProgressionChart({ scenarioKey }: { scenarioKey: ScenarioKey }) 
                     </span>
                     <span className="font-mono font-medium tabular-nums">
                       {formatShare(Number(value), 100)}
-                      {name === "umlage" && (
+                      {name === "steuern" && (
                         <span className="ml-2 font-sans text-foreground">
                           Σ {formatShare(Number(item?.payload?.rate ?? 0), 100)}
                         </span>
@@ -213,7 +213,7 @@ export function ProgressionChart({ scenarioKey }: { scenarioKey: ScenarioKey }) 
             dot={false}
             isAnimationActive={false}
           />
-          {(["steuern", "sozial", "umlage"] as const).map((k) => (
+          {(["umlage", "sozial", "steuern"] as const).map((k) => (
             <Area
               key={k}
               dataKey={k}
