@@ -142,7 +142,7 @@ function UnifiedTable({
       <Separator className="my-1.5" />
         </>
       )}
-      <R label={se ? t("r.profit") : t("r.bruttolohn")} value={result.gross} strong />
+      <R label={se ? t("r.brutto") : t("r.bruttolohn")} value={result.gross} strong />
       <Separator className="my-1.5" />
       <R label={tl(result.tax.lohnsteuer.label)} value={row(result.tax.lohnsteuer)} sign="minus" />
       <R label={tl(result.tax.soli.label)} value={row(result.tax.soli)} sign="minus" />
@@ -193,7 +193,7 @@ export function ResultsPanel({ scenarioKey }: { scenarioKey: ScenarioKey }) {
       {/* Hero stat tiles */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatTile
-          label={result.meta.selfEmployed ? t("r.profit") : t("r.brutto")}
+          label={t("r.brutto")}
           value={result.gross}
           primary={primary}
           share={share(result.gross)}

@@ -89,7 +89,7 @@ function Side({ scenarioKey, label }: { scenarioKey: ScenarioKey; label: string 
             accent
           />
           <MiniStat
-            label={result.meta.selfEmployed ? t("r.profit") : t("c.agKosten")}
+            label={result.meta.selfEmployed ? t("r.brutto") : t("c.agKosten")}
             value={result.employerTotalCost}
             primary={primary}
             share={formatShare(

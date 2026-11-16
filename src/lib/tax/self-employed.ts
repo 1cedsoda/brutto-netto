@@ -125,7 +125,7 @@ export function calculateSelfEmployed(
   const notes = [
     PROPOSAL_NOTE,
     ...baseNotes,
-    "Selbstständig: Eingabe = Gewinn vor Steuern; kein Arbeitgeberanteil, keine Arbeitslosenversicherung.",
+    "Selbstständig: Bruttoeinkommen = Gewinn vor Steuern; kein Arbeitgeberanteil, keine Arbeitslosenversicherung.",
     isGkv
       ? `Krankenversicherung: freiwillig gesetzlich mit vollem Beitrag (${eur(kvRate)} % + Pflege ${eur(pvRate)} %), mindestens auf ${eur(kvMinBase / 12)} €/Monat.`
       : "PKV: volle Prämie ohne Arbeitgeberzuschuss.",

@@ -26,7 +26,7 @@ function inputsBlock(input: ScenarioInput): string {
   const state = STATES.find((s) => s.id === input.bundesland)?.label ?? input.bundesland;
   const lines: string[] = [
     `Steuerjahr: ${input.year}`,
-    `${input.selfEmployed ? "Gewinn vor Steuern" : "Bruttogehalt"}: ${formatEUR(input.grossAmount)} / ${input.grossPeriod === "monthly" ? "Monat" : "Jahr"}`,
+    `${input.selfEmployed ? "Bruttoeinkommen" : "Bruttogehalt"}: ${formatEUR(input.grossAmount)} / ${input.grossPeriod === "monthly" ? "Monat" : "Jahr"}`,
     `Steuerklasse: ${ROMAN[input.steuerklasse]}`,
     `Bundesland: ${state}`,
     `Alter: ${input.age}`,
