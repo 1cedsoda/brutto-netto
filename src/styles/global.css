@@ -127,4 +127,10 @@
   html {
     @apply font-sans;
     }
+  /* Denser UI on larger screens: all rem-based sizes scale down by 12.5 %. */
+  @media (min-width: 768px) {
+    html {
+      font-size: 14px;
+    }
+  }
 }

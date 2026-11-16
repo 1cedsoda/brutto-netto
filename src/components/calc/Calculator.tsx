@@ -43,7 +43,7 @@ export default function Calculator() {
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:py-10">
+      <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:py-8">
         {/* Header */}
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
