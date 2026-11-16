@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, follow" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Impressum · Brutto-Netto-Rechner</title>
+    <script>
+      try {
+        var raw = localStorage.getItem("brutto-netto-2025");
+        var theme = raw ? JSON.parse(raw).state && JSON.parse(raw).state.theme : null;
+        var osDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        var dark = theme === "dark" || ((!theme || theme === "system") && osDark);
+        if (dark) document.documentElement.classList.add("dark");
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/legal/impressum.tsx"></script>
+  </body>
+</html>

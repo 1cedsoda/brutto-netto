@@ -1,0 +1,276 @@
+import { useCalcStore, type Lang } from "./store";
+
+const de = {
+  "app.title": "Brutto-Netto-Rechner",
+  "app.subtitle": "Arbeitnehmer- und Arbeitgeberkosten · Deutschland 2025 – 2027",
+  "app.footer":
+    "Werte für die Kalenderjahre 2025 bis 2027 (§32a/§39b EStG, SV-Rechengrößen; 2027 teils vorläufig nach Gesetzentwürfen). Alle Angaben ohne Gewähr — keine Steuer- oder Rechtsberatung. Alle Eingaben werden ausschließlich lokal im Browser gespeichert.",
+  "app.source": "Quellcode (GitHub)",
+  "period.month": "Monat",
+  "period.year": "Jahr",
+  "mode.single": "Einzeln",
+  "mode.compare": "Vergleich",
+  "action.copy": "Als Text kopieren",
+  "action.copied": "Kopiert",
+  "action.copyAtoB": "A → B kopieren",
+  "action.swap": "A ↔ B tauschen",
+  "action.inputs": "Angaben",
+  "action.reset": "Zurücksetzen",
+  "action.defaults": "Defaults",
+  "scenario": "Szenario",
+  "compare.difference": "Unterschied",
+
+  "sec.income": "Einkommen",
+  "sec.personTax": "Person & Steuer",
+  "sec.social": "Sozialversicherung",
+  "sec.employer": "Arbeitgeber",
+
+  "f.year": "Steuerjahr",
+  "f.gross": "Bruttogehalt",
+  "f.perMonth": "pro Monat",
+  "f.perYear": "pro Jahr",
+  "f.minijob": "Minijob (geringfügig)",
+  "f.selfEmployed": "Selbstständig / Gründer:in",
+  "f.profit": "Gewinn vor Steuern",
+  "f.rvProposal": "Rentenbeitrag (Vorschlag)",
+  "rv.gruender": "½ Regelbeitrag (Gründung, 3 J.)",
+  "rv.regel": "Regelbeitrag",
+  "rv.einkommen": "Einkommensbezogen (18,6 %)",
+  "se.warning":
+    "Vorschlag der Rentenkommission (Empfehlung 22, Bericht vom 23.06.2026) – kein geltendes Recht. Heute sind die meisten Selbstständigen nicht rentenversicherungspflichtig; Gesetzentwurf und Stichtag stehen aus.",
+  "f.steuerklasse": "Steuerklasse",
+  "f.bundesland": "Bundesland",
+  "f.age": "Alter",
+  "f.ageSuffix": "J.",
+  "f.children": "Kinder",
+  "f.church": "Kirchensteuer",
+  "f.health": "Krankenversicherung",
+  "f.fund": "Krankenkasse",
+  "f.zusatz": "Zusatzbeitrag",
+  "f.premium": "Monatliche PKV-Prämie (KV + PV)",
+  "f.basis": "Basistarif-Anteil (steuerlich)",
+  "f.pension": "Renten- & Arbeitslosenversicherung",
+  "f.insolv": "Insolvenzgeldumlage (U3)",
+  "f.u1": "Umlage U1 (Krankheit)",
+  "f.u2": "Umlage U2 (Mutterschaft)",
+  "f.unfall": "Unfallversicherung (BG)",
+
+  "err.gross": "Bitte ein Bruttogehalt eingeben.",
+  "err.premium": "Bitte die monatliche Prämie eingeben.",
+  "hint.zuschuss": "Arbeitgeberzuschuss bis zum gesetzlichen Höchstbetrag.",
+  "hint.noZuschuss":
+    "Ohne Arbeitgeberzuschuss — die volle Prämie trägt der Arbeitnehmer.",
+  "hint.basis":
+    "Steuerlich abzugsfähiger Basisabsicherungs-Anteil der Prämie (lt. Versicherer, meist 80–90 %).",
+  "hint.unfall": "Branchenabhängiger Beitragssatz der Berufsgenossenschaft.",
+
+  "stk.1": "I – ledig / geschieden",
+  "stk.2": "II – alleinerziehend",
+  "stk.3": "III – verheiratet (höheres Einkommen)",
+  "stk.4": "IV – verheiratet (gleich)",
+  "stk.5": "V – verheiratet (geringeres Einkommen)",
+  "stk.6": "VI – Nebenjob",
+
+  "hk.gkv": "GKV",
+  "hk.pkv_zuschuss": "PKV (AG-Zuschuss)",
+  "hk.pkv": "PKV",
+
+  "r.brutto": "Brutto",
+  "r.nettoAN": "Netto (Arbeitnehmer)",
+  "r.agKosten": "Arbeitgeberkosten",
+  "r.flowTitle": "Vom Arbeitgeber zum Netto",
+  "r.approx": "Näherung",
+  "r.provisional": "vorläufig",
+  "r.proposal": "Vorschlag Rentenkommission – kein geltendes Recht",
+  "r.profit": "Gewinn",
+  "r.abgaben": "Steuern & Abgaben",
+  "r.provisionalHint":
+    "Die Werte für dieses Jahr beruhen teils auf Gesetz- und Verordnungsentwürfen (Stand November 2026) und können sich noch ändern.",
+  "r.breakdownTitle": "Aufschlüsselung – Arbeitnehmer & Arbeitgeber",
+  "r.bruttolohn": "Bruttolohn",
+  "r.netto": "Netto",
+  "r.steuernAbgaben": "Steuern & Abgaben",
+  "r.agGesamt": "Arbeitgeber-Gesamtkosten",
+  "r.progression": "Abgabenquote nach Einkommen",
+  "r.progressionY": "Abgabenquote",
+  "r.you": "Du",
+  "r.benchmark": "Ø Deutschland",
+
+  "c.brutto": "Brutto",
+  "c.netto": "Netto",
+  "c.agKosten": "AG-Kosten",
+
+  "ch.net": "Netto",
+  "ch.steuern": "Steuern",
+  "ch.sozial": "Sozialabgaben",
+  "ch.umlage": "Umlage",
+  "ch.agKosten": "AG-Kosten",
+  "ch.brutto": "Brutto",
+
+  "m.month": "/M",
+  "m.year": "/J",
+  "m.perMonth": "/ Monat",
+  "m.perYear": "/ Jahr",
+
+  "sfx.an": "(AN)",
+  "sfx.ag": "(AG)",
+} as const;
+
+type Key = keyof typeof de;
+
+const en: Record<Key, string> = {
+  "app.title": "Gross-Net Calculator",
+  "app.subtitle": "Employee and employer costs · Germany 2025 – 2027",
+  "app.footer":
+    "Figures for the calendar years 2025 to 2027 (§32a/§39b EStG, social-security parameters; 2027 partly provisional, based on draft legislation). All information without guarantee — not tax or legal advice. All inputs are stored locally in your browser only.",
+  "app.source": "Source code (GitHub)",
+  "period.month": "Month",
+  "period.year": "Year",
+  "mode.single": "Single",
+  "mode.compare": "Compare",
+  "action.copy": "Copy as text",
+  "action.copied": "Copied",
+  "action.copyAtoB": "Copy A → B",
+  "action.swap": "Swap A ↔ B",
+  "action.inputs": "Inputs",
+  "action.reset": "Reset",
+  "action.defaults": "Defaults",
+  "scenario": "Scenario",
+  "compare.difference": "Difference",
+
+  "sec.income": "Income",
+  "sec.personTax": "Person & Tax",
+  "sec.social": "Social insurance",
+  "sec.employer": "Employer",
+
+  "f.year": "Tax year",
+  "f.gross": "Gross salary",
+  "f.perMonth": "per month",
+  "f.perYear": "per year",
+  "f.minijob": "Mini-job (marginal)",
+  "f.selfEmployed": "Self-employed / founder",
+  "f.profit": "Profit before tax",
+  "f.rvProposal": "Pension contribution (proposal)",
+  "rv.gruender": "½ standard contribution (founders, 3 yrs)",
+  "rv.regel": "Standard contribution",
+  "rv.einkommen": "Income-based (18.6 %)",
+  "se.warning":
+    "Proposal of the German pension commission (recommendation 22, report of 23 June 2026) – not current law. Today most self-employed people are not subject to mandatory pension insurance; no bill or start date yet.",
+  "f.steuerklasse": "Tax class",
+  "f.bundesland": "Federal state",
+  "f.age": "Age",
+  "f.ageSuffix": "yrs",
+  "f.children": "Children",
+  "f.church": "Church tax",
+  "f.health": "Health insurance",
+  "f.fund": "Health fund",
+  "f.zusatz": "Supplementary rate",
+  "f.premium": "Monthly private premium (health + care)",
+  "f.basis": "Deductible basic share (tax)",
+  "f.pension": "Pension & unemployment insurance",
+  "f.insolv": "Insolvency levy (U3)",
+  "f.u1": "Levy U1 (sickness)",
+  "f.u2": "Levy U2 (maternity)",
+  "f.unfall": "Accident insurance (BG)",
+
+  "err.gross": "Please enter a gross salary.",
+  "err.premium": "Please enter the monthly premium.",
+  "hint.zuschuss": "Employer subsidy up to the statutory maximum.",
+  "hint.noZuschuss": "No employer subsidy — the employee pays the full premium.",
+  "hint.basis":
+    "Tax-deductible basic-coverage share of the premium (per insurer, usually 80–90 %).",
+  "hint.unfall": "Industry-specific rate of the employers' liability insurance.",
+
+  "stk.1": "I – single / divorced",
+  "stk.2": "II – single parent",
+  "stk.3": "III – married (higher income)",
+  "stk.4": "IV – married (equal)",
+  "stk.5": "V – married (lower income)",
+  "stk.6": "VI – second job",
+
+  "hk.gkv": "Statutory (GKV)",
+  "hk.pkv_zuschuss": "Private (with employer subsidy)",
+  "hk.pkv": "Private (no subsidy)",
+
+  "r.brutto": "Gross",
+  "r.nettoAN": "Net (employee)",
+  "r.agKosten": "Employer cost",
+  "r.flowTitle": "From employer cost to net",
+  "r.approx": "Approximation",
+  "r.provisional": "provisional",
+  "r.proposal": "Pension commission proposal – not current law",
+  "r.profit": "Profit",
+  "r.abgaben": "Taxes & contributions",
+  "r.provisionalHint":
+    "Figures for this year are partly based on draft legislation (as of November 2026) and may still change.",
+  "r.breakdownTitle": "Breakdown – employee & employer",
+  "r.bruttolohn": "Gross salary",
+  "r.netto": "Net",
+  "r.steuernAbgaben": "Taxes & contributions",
+  "r.agGesamt": "Total employer cost",
+  "r.progression": "Burden rate by income",
+  "r.progressionY": "Burden rate",
+  "r.you": "You",
+  "r.benchmark": "Avg. Germany",
+
+  "c.brutto": "Gross",
+  "c.netto": "Net",
+  "c.agKosten": "Empl. cost",
+
+  "ch.net": "Net",
+  "ch.steuern": "Taxes",
+  "ch.sozial": "Social",
+  "ch.umlage": "Levies",
+  "ch.agKosten": "Empl. cost",
+  "ch.brutto": "Gross",
+
+  "m.month": "/mo",
+  "m.year": "/yr",
+  "m.perMonth": "/ month",
+  "m.perYear": "/ year",
+
+  "sfx.an": "(EE)",
+  "sfx.ag": "(ER)",
+};
+
+const dict: Record<Lang, Record<Key, string>> = { de, en };
+
+/** German engine line-item labels → English. */
+const LABELS_EN: Record<string, string> = {
+  Lohnsteuer: "Income tax",
+  Solidaritätszuschlag: "Solidarity surcharge",
+  Kirchensteuer: "Church tax",
+  "Steuern gesamt": "Total taxes",
+  Rentenversicherung: "Pension insurance",
+  Arbeitslosenversicherung: "Unemployment insurance",
+  Krankenversicherung: "Health insurance",
+  Pflegeversicherung: "Long-term care insurance",
+  "Sozialabgaben gesamt": "Total social contributions",
+  "Private Krankenversicherung": "Private health insurance",
+  "Zuschuss PKV": "Private insurance subsidy",
+  "Insolvenzgeldumlage (U3)": "Insolvency levy (U3)",
+  "Umlage U1 (Krankheit)": "Levy U1 (sickness)",
+  "Umlage U2 (Mutterschaft)": "Levy U2 (maternity)",
+  "Unfallversicherung (BG)": "Accident insurance (BG)",
+  Pauschsteuer: "Flat-rate tax",
+  "Arbeitgeberanteil gesamt": "Total employer share",
+  "Rentenversicherung (Eigenanteil)": "Pension insurance (own share)",
+  "Pauschalbeitrag Rentenversicherung": "Flat-rate pension contribution",
+  "Pauschalbeitrag Krankenversicherung": "Flat-rate health contribution",
+  Einkommensteuer: "Income tax",
+  "Rentenversicherung (Vorschlag Rentenkommission)": "Pension insurance (commission proposal)",
+};
+
+export function useT() {
+  const lang = useCalcStore((s) => s.lang);
+  return (key: Key) => dict[lang][key];
+}
+
+/** Translate an engine-produced German label into the active language. */
+export function useLabel() {
+  const lang = useCalcStore((s) => s.lang);
+  return (germanLabel: string) =>
+    lang === "de" ? germanLabel : (LABELS_EN[germanLabel] ?? germanLabel);
+}
+
+export type { Key };

@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "brutto-netto",
+  "compatibility_date": "2026-11-16",
+  // Assets-only Worker: Cloudflare serves the Vite build output directly.
+  "assets": {
+    "directory": "./dist",
+    // /impressum -> impressum.html, /datenschutz -> datenschutz.html
+    "html_handling": "auto-trailing-slash",
+    // Unknown paths fall back to the calculator (index.html)
+    "not_found_handling": "single-page-application"
+  },
+  "observability": {
+    "enabled": false
+  }
+}

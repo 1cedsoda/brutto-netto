@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Brutto-Netto-Rechner 2025 – 2027 · Arbeitnehmer & Arbeitgeber</title>
+    <meta
+      name="description"
+      content="Brutto-Netto-Rechner 2025, 2026 & 2027 für Deutschland — Arbeitnehmer- und Arbeitgeberkosten, monatlich und jährlich, mit Vergleichsmodus."
+    />
+    <script>
+      // Apply the stored theme (or OS preference) before paint to avoid a flash.
+      try {
+        var raw = localStorage.getItem("brutto-netto-2025");
+        var theme = raw ? JSON.parse(raw).state && JSON.parse(raw).state.theme : null;
+        var osDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        var dark = theme === "dark" || ((!theme || theme === "system") && osDark);
+        if (dark) document.documentElement.classList.add("dark");
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
