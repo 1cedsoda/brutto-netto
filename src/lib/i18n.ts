@@ -20,6 +20,10 @@ const de = {
   "scenario": "Szenario",
   "compare.difference": "Unterschied",
 
+  "sec.employment": "Beschäftigung",
+  "emp.employee": "Angestellt",
+  "emp.minijob": "Minijob",
+  "emp.self": "Selbstständig",
   "sec.income": "Einkommen",
   "sec.personTax": "Person & Steuer",
   "sec.social": "Sozialversicherung",
@@ -77,6 +81,9 @@ const de = {
 
   "r.brutto": "Brutto",
   "r.nettoAN": "Netto (Arbeitnehmer)",
+  "r.nettoSelf": "Netto",
+  "r.flowTitleSelf": "Vom Gewinn zum Netto",
+  "r.breakdownTitleSelf": "Aufschlüsselung – Steuern & Abgaben",
   "r.agKosten": "Arbeitgeberkosten",
   "r.flowTitle": "Vom Arbeitgeber zum Netto",
   "r.approx": "Näherung",
@@ -138,6 +145,10 @@ const en: Record<Key, string> = {
   "scenario": "Scenario",
   "compare.difference": "Difference",
 
+  "sec.employment": "Employment",
+  "emp.employee": "Employee",
+  "emp.minijob": "Mini-job",
+  "emp.self": "Self-employed",
   "sec.income": "Income",
   "sec.personTax": "Person & Tax",
   "sec.social": "Social insurance",
@@ -194,6 +205,9 @@ const en: Record<Key, string> = {
 
   "r.brutto": "Gross",
   "r.nettoAN": "Net (employee)",
+  "r.nettoSelf": "Net",
+  "r.flowTitleSelf": "From profit to net",
+  "r.breakdownTitleSelf": "Breakdown – taxes & contributions",
   "r.agKosten": "Employer cost",
   "r.flowTitle": "From employer cost to net",
   "r.approx": "Approximation",

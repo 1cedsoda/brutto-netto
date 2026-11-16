@@ -200,7 +200,7 @@ export function ResultsPanel({ scenarioKey }: { scenarioKey: ScenarioKey }) {
           accent="gross"
         />
         <StatTile
-          label={t("r.nettoAN")}
+          label={result.meta.selfEmployed ? t("r.nettoSelf") : t("r.nettoAN")}
           value={result.net}
           primary={primary}
           share={share(result.net)}
@@ -231,7 +231,7 @@ export function ResultsPanel({ scenarioKey }: { scenarioKey: ScenarioKey }) {
       {/* Flow bar (full chain) */}
       <Card>
         <CardHeader className="flex-row items-center justify-between pb-3">
-          <CardTitle className="text-base">{t("r.flowTitle")}</CardTitle>
+          <CardTitle className="text-base">{t(result.meta.selfEmployed ? "r.flowTitleSelf" : "r.flowTitle")}</CardTitle>
           <div className="flex items-center gap-2">
             {result.meta.approximate && (
               <Badge variant="outline" className="gap-1 text-amber-600">
@@ -258,7 +258,7 @@ export function ResultsPanel({ scenarioKey }: { scenarioKey: ScenarioKey }) {
       {/* Unified breakdown panel: donut + table, then progression curve */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">{t("r.breakdownTitle")}</CardTitle>
+          <CardTitle className="text-base">{t(result.meta.selfEmployed ? "r.breakdownTitleSelf" : "r.breakdownTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-6">
           <div className="grid gap-6 md:grid-cols-[220px_1fr] md:items-center">

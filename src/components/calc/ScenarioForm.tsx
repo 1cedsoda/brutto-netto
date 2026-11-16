@@ -30,6 +30,12 @@ const STEUERKLASSEN: { value: Steuerklasse; key: Key }[] = [
   { value: 6, key: "stk.6" },
 ];
 
+const EMPLOYMENT_KINDS: { value: "employee" | "minijob" | "self"; key: Key }[] = [
+  { value: "employee", key: "emp.employee" },
+  { value: "minijob", key: "emp.minijob" },
+  { value: "self", key: "emp.self" },
+];
+
 const RV_PROPOSALS: { value: RvProposal; key: Key }[] = [
   { value: "gruender", key: "rv.gruender" },
   { value: "regel", key: "rv.regel" },
@@ -105,6 +111,71 @@ export function ScenarioForm({ scenarioKey }: { scenarioKey: ScenarioKey }) {
 
   return (
     <form className="grid gap-5" onSubmit={(e) => e.preventDefault()}>
+      {/* ── Beschäftigung ─────────────────────────────────────── */}
+      <Section title={t("sec.employment")}>
+        <form.Subscribe
+          selector={(s) => [s.values.minijob, s.values.selfEmployed] as const}
+        >
+          {([minijob, selfEmployed]) => (
+            <>
+              <ToggleGroup
+                type="single"
+                value={selfEmployed ? "self" : minijob ? "minijob" : "employee"}
+                onValueChange={(v) => {
+                  if (!v) return;
+                  form.setFieldValue("minijob", v === "minijob");
+                  form.setFieldValue("selfEmployed", v === "self");
+                  // setFieldValue doesn't fire the form's change listener.
+                  setScenario(scenarioKey, form.state.values as ScenarioInput);
+                }}
+                variant="outline"
+                size="sm"
+                className="w-full"
+              >
+                {EMPLOYMENT_KINDS.map((k) => (
+                  <ToggleGroupItem key={k.value} value={k.value} className="flex-1 text-xs">
+                    {t(k.key)}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              {selfEmployed && (
+                <div className="grid gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 p-3">
+                  <p className="text-[11px] leading-snug text-amber-700 dark:text-amber-500">
+                    {t("se.warning")}
+                  </p>
+                  <form.Field name="rvProposal">
+                    {(field) => (
+                      <div className="grid gap-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground">
+                          {t("f.rvProposal")}
+                        </Label>
+                        <Select
+                          value={field.state.value}
+                          onValueChange={(v) => field.handleChange(v as RvProposal)}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {RV_PROPOSALS.map((p) => (
+                              <SelectItem key={p.value} value={p.value}>
+                                {t(p.key)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </form.Field>
+                </div>
+              )}
+            </>
+          )}
+        </form.Subscribe>
+      </Section>
+
+      <Separator />
+
       {/* ── Person & Steuer ───────────────────────────────────── */}
       <Section title={t("sec.personTax")}>
         <form.Field name="year">
@@ -259,67 +330,6 @@ export function ScenarioForm({ scenarioKey }: { scenarioKey: ScenarioKey }) {
               )}
             </form.Field>
           )}
-        </form.Subscribe>
-
-        <form.Field name="selfEmployed">
-          {(field) => (
-            <SwitchRow
-              id={id("selfEmployed")}
-              label={t("f.selfEmployed")}
-              checked={field.state.value}
-              onChange={(v) => {
-                field.handleChange(v);
-                if (v) form.setFieldValue("minijob", false);
-              }}
-            />
-          )}
-        </form.Field>
-
-        <form.Subscribe selector={(s) => s.values.selfEmployed}>
-          {(selfEmployed) =>
-            selfEmployed ? (
-              <div className="grid gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 p-3">
-                <p className="text-[11px] leading-snug text-amber-700 dark:text-amber-500">
-                  {t("se.warning")}
-                </p>
-                <form.Field name="rvProposal">
-                  {(field) => (
-                    <div className="grid gap-1.5">
-                      <Label className="text-xs font-medium text-muted-foreground">
-                        {t("f.rvProposal")}
-                      </Label>
-                      <Select
-                        value={field.state.value}
-                        onValueChange={(v) => field.handleChange(v as RvProposal)}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {RV_PROPOSALS.map((p) => (
-                            <SelectItem key={p.value} value={p.value}>
-                              {t(p.key)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </form.Field>
-              </div>
-            ) : (
-              <form.Field name="minijob">
-                {(field) => (
-                  <SwitchRow
-                    id={id("minijob")}
-                    label={t("f.minijob")}
-                    checked={field.state.value}
-                    onChange={field.handleChange}
-                  />
-                )}
-              </form.Field>
-            )
-          }
         </form.Subscribe>
       </Section>
 

@@ -67,7 +67,7 @@ function buildSlices(
   return {
     slices: out,
     total: f(result.employerTotalCost),
-    totalLabel: t("ch.agKosten"),
+    totalLabel: result.meta.selfEmployed ? t("r.profit") : t("ch.agKosten"),
   };
 }
 
