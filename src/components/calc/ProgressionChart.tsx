@@ -13,7 +13,8 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { calculate } from "@/lib/tax/calculate";
+import { calculateScenario } from "@/lib/tax/scenario";
+import type { ScenarioInput } from "@/lib/tax/types";
 import { getConstants } from "@/lib/tax/constants";
 import { useCalcStore, defaultScenario, type ScenarioKey } from "@/lib/store";
 import { useT } from "@/lib/i18n";
@@ -30,24 +31,32 @@ export function ProgressionChart({ scenarioKey }: { scenarioKey: ScenarioKey }) 
     scenarioKey === "A" ? s.scenarioA : s.scenarioB,
   );
   const monthly = scenario.grossPeriod === "monthly";
-  const current = scenario.grossAmount;
+  // The main job is varied; all further jobs stay fixed. X axis = total gross.
+  const others = scenario.jobs.slice(1).reduce((a, j) => a + j.grossAmount, 0);
+  const current = (scenario.jobs[0]?.grossAmount ?? 0) + others;
 
   const { data, minX, maxX, lowest } = useMemo(() => {
     const limit = getConstants(scenario.year).minijobLimit; // €/month
-    const min = monthly ? limit : limit * 12;
-    const top = monthly ? 10000 : 120000;
+    const min = (monthly ? limit : limit * 12) + others;
+    const top = (monthly ? 10000 : 120000) + others;
     const max = Math.max(top, current);
     const steps = 60;
 
-    const benchScenario = {
+    const benchScenario: ScenarioInput = {
       ...defaultScenario,
       year: scenario.year,
       grossPeriod: scenario.grossPeriod,
-      minijob: false,
     };
     // Burden = (AG total cost − net) / AG total cost.
-    const rateOf = (sc: typeof scenario, g: number) => {
-      const r = calculate({ ...sc, minijob: false, grossAmount: g });
+    const rateOf = (sc: ScenarioInput, total: number, fixed: number) => {
+      const [main, ...rest] = sc.jobs;
+      const r = calculateScenario({
+        ...sc,
+        jobs: [
+          { ...main, kind: main.kind === "minijob" ? "employee" : main.kind, grossAmount: Math.max(0, total - fixed) },
+          ...rest,
+        ],
+      }).total;
       const cost = r.employerTotalCost.monthly;
       return cost > 0 ? ((cost - r.net.monthly) / cost) * 100 : 0;
     };
@@ -56,13 +65,13 @@ export function ProgressionChart({ scenarioKey }: { scenarioKey: ScenarioKey }) 
     let lowest = Infinity;
     for (let i = 0; i <= steps; i++) {
       const g = min + ((max - min) / steps) * i; // linear income axis
-      const rate = rateOf(scenario, g);
-      const benchmark = rateOf(benchScenario, g);
+      const rate = rateOf(scenario, g, others);
+      const benchmark = rateOf(benchScenario, g, 0);
       lowest = Math.min(lowest, rate, benchmark);
       pts.push({ x: g, rate, benchmark });
     }
     return { data: pts, minX: min, maxX: max, lowest };
-  }, [scenario, monthly, current]);
+  }, [scenario, monthly, current, others]);
 
   // Logarithmic Y axis, normally 30–60 %, extended downwards if a curve dips lower.
   const yMin = Math.max(5, Math.min(30, Math.floor(lowest / 5) * 5));

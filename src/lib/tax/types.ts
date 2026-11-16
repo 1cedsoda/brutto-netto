@@ -65,7 +65,7 @@ export interface EmployerExtras {
 
 import type { TaxYear } from "./constants";
 
-export interface ScenarioInput {
+export interface JobInput {
   /** Calendar year whose rules apply */
   year: TaxYear;
   grossPeriod: GrossPeriod;
@@ -96,6 +96,90 @@ export interface ScenarioInput {
   rvProposal: RvProposal;
   health: HealthInsurance;
   employer: EmployerExtras;
+
+  // ── Internal overrides set by the multi-job layer (scenario.ts) ──
+  /** Share (0–1) of the contribution ceilings (BBG) attributed to this job when
+   *  several jobs are subject to social insurance (§22 Abs. 2 SGB IV). */
+  bbgShare?: number;
+  /** Arbeitslosenversicherungsfrei (e.g. a Minijob added to a main job). */
+  alvExempt?: boolean;
+  /** Übergangsbereich: contribution bases as a share of the gross wage. */
+  midijob?: { totalFactor: number; employeeFactor: number };
+  /** Health/long-term care is covered via another job (no KV/PV/PKV here). */
+  noHealth?: boolean;
+  /** Self-employed: additional income counted for the voluntary GKV base. */
+  kvExtraIncome?: number;
+  /** Self-employed: compute income tax here (false when assessed jointly). */
+  selfWithTax?: boolean;
+}
+
+// ── Multi-job scenario (public model) ───────────────────────────────────
+
+export type JobKind = "employee" | "minijob" | "self";
+
+export interface Job {
+  id: string;
+  kind: JobKind;
+  /** Gross wage (employee/minijob) or gross income (self), in the scenario's period */
+  grossAmount: number;
+  /** Employer levies — employee / minijob only */
+  employer: EmployerExtras;
+}
+
+/** A person with one or more jobs. Person-level settings apply to all jobs. */
+export interface ScenarioInput {
+  year: TaxYear;
+  grossPeriod: GrossPeriod;
+  steuerklasse: Steuerklasse;
+  bundesland: Bundesland;
+  church: boolean;
+  children: number;
+  age: number;
+  /** Statutory pension + unemployment insurance for employments */
+  pensionInsured: boolean;
+  health: HealthInsurance;
+  /** Self-employed: apply the Rentenkommission proposal (not current law) */
+  rvCommission: boolean;
+  rvProposal: RvProposal;
+  /** jobs[0] is the main job; at most one job of kind "self" */
+  jobs: Job[];
+}
+
+/** How a job is treated under the multi-job rules. */
+export type JobTreatment =
+  | "main" // Hauptbeschäftigung (persönliche Steuerklasse)
+  | "side" // weitere Beschäftigung (Steuerklasse VI)
+  | "midijob" // Übergangsbereich (Hauptjob)
+  | "minijob" // geringfügig, pauschal
+  | "minijob-combined" // Minijob, mit Hauptjob zusammengerechnet → SV-pflichtig
+  | "self";
+
+export interface JobResult {
+  job: Job;
+  index: number;
+  treatment: JobTreatment;
+  steuerklasse: Steuerklasse | null;
+  result: CalculationResult;
+}
+
+export interface AnnualAssessment {
+  zvE: number;
+  incomeTax: number;
+  soli: number;
+  kirchensteuer: number;
+  total: number;
+  /** Lohnsteuer + Soli + KiSt already withheld by the employers */
+  withheld: number;
+  /** > 0: Nachzahlung, < 0: Erstattung */
+  balance: number;
+}
+
+export interface ScenarioResult {
+  jobs: JobResult[];
+  /** Everything combined (annual tax when assessed jointly) */
+  total: CalculationResult;
+  /** Joint annual assessment (Steuererklärung) — only with several jobs / self-employment */
+  annual: AnnualAssessment | null;
 }
 
 export interface LineItem {

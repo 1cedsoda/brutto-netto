@@ -3,7 +3,7 @@
 // derive the taxable income for the Lohnsteuer. Year-parameterised.
 
 import type { YearConstants } from "./constants";
-import type { ScenarioInput, Steuerklasse } from "./types";
+import type { JobInput, Steuerklasse } from "./types";
 
 export interface RatePair {
   employee: number; // %
@@ -14,7 +14,7 @@ const clampBase = (annual: number, ceiling: number) =>
   Math.min(Math.max(0, annual), ceiling);
 
 /** Pflegeversicherung rates depend on Saxony, childlessness and child count. */
-export function pflegeRates(input: ScenarioInput, C: YearConstants): RatePair {
+export function pflegeRates(input: JobInput, C: YearConstants): RatePair {
   const isSaxony = input.bundesland === "SN";
   const childless = input.children === 0 && input.age >= 23;
   const base = C.pvRate / 2; // 1.8
@@ -64,7 +64,7 @@ export interface SocialResult {
 }
 
 export function computeSocial(
-  input: ScenarioInput,
+  input: JobInput,
   grossAnnual: number,
   C: YearConstants,
 ): SocialResult {
@@ -74,36 +74,60 @@ export function computeSocial(
   const rvEmployee = C.rvRate / 2;
   const alvEmployee = C.alvRate / 2;
 
+  // Übergangsbereich (Midijob, §20a SGB IV): the employee pays on a reduced base,
+  // the employer pays the total contribution on the (higher) BE minus the
+  // employee share. Outside the range both pay on the capped gross.
+  const mf = input.midijob;
+  const pair = (
+    base: number,
+    employeePct: number,
+    employerPct: number,
+    employeeOnlyPct = 0,
+  ): { employee: SocialContribution; employer: SocialContribution } => {
+    if (!mf) {
+      return {
+        employee: contribution(base, employeePct + employeeOnlyPct),
+        employer: contribution(base, employerPct),
+      };
+    }
+    const g = Math.max(0, grossAnnual);
+    const empY = (g * mf.employeeFactor * (employeePct + employeeOnlyPct)) / 100;
+    const erY =
+      (g * mf.totalFactor * (employeePct + employerPct)) / 100 -
+      (g * mf.employeeFactor * employeePct) / 100;
+    const eff = (y: number) => (g > 0 ? (y / g) * 100 : 0);
+    return {
+      employee: { yearly: empY, monthly: empY / 12, ratePct: eff(empY) },
+      employer: { yearly: erY, monthly: erY / 12, ratePct: eff(erY) },
+    };
+  };
+
   // One combined flag gates both pension (RV) and unemployment (ALV) insurance.
   const rvRate = input.pensionInsured ? rvEmployee : 0;
-  const alvRate = input.pensionInsured ? alvEmployee : 0;
-  const rente = {
-    employee: contribution(baseRV, rvRate),
-    employer: contribution(baseRV, rvRate),
-  };
-  const arbeitslosen = {
-    employee: contribution(baseRV, alvRate),
-    employer: contribution(baseRV, alvRate),
-  };
+  const alvRate = input.pensionInsured && !input.alvExempt ? alvEmployee : 0;
+  const rente = pair(baseRV, rvRate, rvRate);
+  const arbeitslosen = pair(baseRV, alvRate, alvRate);
 
   const pfRates = pflegeRates(input, C);
   const isPrivate = input.health.kind !== "gkv";
+  const childless = input.children === 0 && input.age >= 23;
+  const pvSurcharge = childless ? C.pvChildlessSurcharge : 0;
 
   let kranken: SocialResult["kranken"];
   let pflege: SocialResult["pflege"];
   let privateEmployerSubsidyAnnual = 0;
   let privateEmployeeAnnual = 0;
 
-  if (!isPrivate) {
+  if (input.noHealth) {
+    // Covered through another job (e.g. side job, or self-employment next to
+    // an employment that is subject to social insurance).
+    const zero: SocialContribution = { monthly: 0, yearly: 0, ratePct: 0 };
+    kranken = { employee: zero, employer: zero };
+    pflege = { employee: zero, employer: zero };
+  } else if (!isPrivate) {
     const kvRates = krankenRates(input.health.zusatzbeitragPct, C);
-    kranken = {
-      employee: contribution(baseKV, kvRates.employee),
-      employer: contribution(baseKV, kvRates.employer),
-    };
-    pflege = {
-      employee: contribution(baseKV, pfRates.employee),
-      employer: contribution(baseKV, pfRates.employer),
-    };
+    kranken = pair(baseKV, kvRates.employee, kvRates.employer);
+    pflege = pair(baseKV, pfRates.employee - pvSurcharge, pfRates.employer, pvSurcharge);
   } else {
     const zero: SocialContribution = { monthly: 0, yearly: 0, ratePct: 0 };
     kranken = { employee: zero, employer: zero };
@@ -139,7 +163,7 @@ export function computeSocial(
  * taxable income for the Lohnsteuer (§39b Abs. 2 Satz 5 Nr. 3 EStG).
  */
 export function vorsorgepauschale(
-  input: ScenarioInput,
+  input: JobInput,
   grossAnnual: number,
   klasse: Steuerklasse,
   C: YearConstants,
@@ -148,14 +172,17 @@ export function vorsorgepauschale(
   const baseKV = clampBase(grossAnnual, C.bbgKv);
 
   // Teilbetrag Rentenversicherung — 100% deductible.
-  const rvPart = input.pensionInsured ? (baseRV * (C.rvRate / 2)) / 100 : 0;
+  const ef = input.midijob?.employeeFactor ?? 1;
+  const rvPart = input.pensionInsured ? (baseRV * ef * (C.rvRate / 2)) / 100 : 0;
 
   // Teilbetrag Kranken-/Pflegeversicherung.
   let kvpvActual: number;
-  if (input.health.kind === "gkv") {
+  if (input.noHealth) {
+    kvpvActual = 0;
+  } else if (input.health.kind === "gkv") {
     const kvRate = C.vorsorgeKvBase + input.health.zusatzbeitragPct / 2; // reduced base 7.0%
     const pvRate = pflegeRates(input, C).employee;
-    kvpvActual = (baseKV * (kvRate + pvRate)) / 100;
+    kvpvActual = (baseKV * ef * (kvRate + pvRate)) / 100;
   } else {
     // Only the Basisabsicherung portion of a PKV premium is deductible
     // (comfort tariffs / Krankengeld entitlement are excluded).

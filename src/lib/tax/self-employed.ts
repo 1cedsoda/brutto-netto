@@ -22,7 +22,7 @@ import {
   soliAnnual,
 } from "./income-tax";
 import { pflegeRates } from "./social";
-import type { CalculationResult, LineItem, RvProposal, ScenarioInput } from "./types";
+import type { CalculationResult, LineItem, RvProposal, JobInput } from "./types";
 
 export const PROPOSAL_NOTE =
   "Rentenversicherung nach dem VORSCHLAG der Rentenkommission (Alterssicherungskommission, Empfehlung 22, Bericht vom 23.06.2026) – kein geltendes Recht, Gesetzentwurf und Stichtag stehen aus.";
@@ -66,7 +66,7 @@ export function proposalPensionAnnual(
 }
 
 export function calculateSelfEmployed(
-  input: ScenarioInput,
+  input: JobInput,
   profitAnnual: number,
   C: YearConstants,
   baseNotes: string[],
@@ -86,14 +86,16 @@ export function calculateSelfEmployed(
 
   // ── Kranken-/Pflegeversicherung (freiwillig GKV bzw. PKV, geltendes Recht) ──
   const isGkv = input.health.kind === "gkv";
+  const viaJob = !!input.noHealth; // covered via an employment subject to SV
   const kvMinBase = (C.bezugsgroesse / 3) * 12; // Mindestbemessungsgrundlage
-  const kvBase = Math.min(Math.max(profit, kvMinBase), C.bbgKv);
+  const kvIncome = profit + (input.kvExtraIncome ?? 0);
+  const kvBase = viaJob ? 0 : Math.min(Math.max(kvIncome, kvMinBase), C.bbgKv);
   const kvRate = C.kvRate + input.health.zusatzbeitragPct;
   const pf = pflegeRates({ ...input, bundesland: "NW" }, C); // no Saxony split w/o employer
   const pvRate = pf.employee + pf.employer;
   const kvYearly = isGkv ? (kvBase * kvRate) / 100 : 0;
   const pvYearly = isGkv ? (kvBase * pvRate) / 100 : 0;
-  const pkvYearly = isGkv ? 0 : input.health.privateMonthlyPremium * 12;
+  const pkvYearly = isGkv || viaJob ? 0 : input.health.privateMonthlyPremium * 12;
 
   // ── Einkommensteuer ──
   // Vorsorgeaufwendungen: RV voll, KV ohne Krankengeld-Anteil (−4 %), PV voll;
@@ -112,12 +114,14 @@ export function calculateSelfEmployed(
     0,
     Math.floor(profit - C.sonderausgabenPauschbetrag - vorsorge - entlastung),
   );
-  const est = lohnsteuerAnnual(zvE, klasse, C);
+  // In a multi-job scenario the income tax is assessed jointly (scenario.ts).
+  const withTax = input.selfWithTax !== false;
+  const est = withTax ? lohnsteuerAnnual(zvE, klasse, C) : 0;
   const units = input.children > 0 ? input.children : 0;
-  const soliBase = units > 0 ? bemessungForSoliKist(zvE, klasse, units, C) : est;
-  const soli = soliAnnual(soliBase, klasse, C);
+  const soliBase = !withTax ? 0 : units > 0 ? bemessungForSoliKist(zvE, klasse, units, C) : est;
+  const soli = withTax ? soliAnnual(soliBase, klasse, C) : 0;
   const kistRate = STATES.find((s) => s.id === input.bundesland)?.kistRate ?? 9;
-  const kist = input.church ? kirchensteuerAnnual(soliBase, kistRate) : 0;
+  const kist = withTax && input.church ? kirchensteuerAnnual(soliBase, kistRate) : 0;
   const taxTotal = est + soli + kist;
 
   const socialTotal = rvYearly + kvYearly + pvYearly;
@@ -130,10 +134,14 @@ export function calculateSelfEmployed(
       : "Rentenversicherung: geltendes Recht – die meisten Selbstständigen sind nicht pflichtversichert, hier ohne Rentenbeitrag gerechnet.",
     ...baseNotes,
     "Selbstständig: Bruttoeinkommen = Gewinn vor Steuern; kein Arbeitgeberanteil, keine Arbeitslosenversicherung.",
-    isGkv
+    viaJob
+      ? "Kranken-/Pflegeversicherung über die Beschäftigung – keine zusätzlichen Beiträge auf das Einkommen aus Selbstständigkeit."
+      : isGkv
       ? `Krankenversicherung: freiwillig gesetzlich mit vollem Beitrag (${eur(kvRate)} % + Pflege ${eur(pvRate)} %), mindestens auf ${eur(kvMinBase / 12)} €/Monat.`
       : "PKV: volle Prämie ohne Arbeitgeberzuschuss.",
-    "Einkommensteuer ohne Gewerbesteuer (z. B. Freiberufler), Steuerklasse III = Splitting ohne Partnereinkommen.",
+    withTax
+      ? "Einkommensteuer ohne Gewerbesteuer (z. B. Freiberufler), Steuerklasse III = Splitting ohne Partnereinkommen."
+      : "Einkommensteuer wird gemeinsam mit den anderen Einkünften über die Steuererklärung berechnet (ohne Gewerbesteuer).",
   ];
   if (proposal && input.rvProposal === "gruender") {
     notes.push(

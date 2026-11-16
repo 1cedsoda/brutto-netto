@@ -9,7 +9,7 @@ import {
 } from "./income-tax";
 import { computeSocial, vorsorgepauschale } from "./social";
 import { calculateSelfEmployed } from "./self-employed";
-import type { CalculationResult, LineItem, ScenarioInput, Steuerklasse } from "./types";
+import type { CalculationResult, LineItem, JobInput, Steuerklasse } from "./types";
 
 const mk = (
   key: string,
@@ -26,7 +26,7 @@ const mk = (
 });
 
 /** Child-allowance units (Kinderfreibetragszähler) used for Soli/KiSt assessment. */
-function childAllowanceUnits(klasse: Steuerklasse, children: number): number {
+export function childAllowanceUnits(klasse: Steuerklasse, children: number): number {
   if (children <= 0) return 0;
   switch (klasse) {
     case 4:
@@ -39,8 +39,15 @@ function childAllowanceUnits(klasse: Steuerklasse, children: number): number {
   }
 }
 
-export function calculate(input: ScenarioInput): CalculationResult {
-  const C = getConstants(input.year);
+/** Scale the contribution ceilings for a job that shares them with other jobs. */
+function withBbgShare(C: YearConstants, share: number | undefined): YearConstants {
+  if (share === undefined || share >= 1) return C;
+  return { ...C, bbgRv: C.bbgRv * share, bbgKv: C.bbgKv * share };
+}
+
+/** Calculate a single job (or the only job) of a person. */
+export function calculate(input: JobInput): CalculationResult {
+  const C = withBbgShare(getConstants(input.year), input.bbgShare);
   const grossAnnual =
     input.grossPeriod === "monthly" ? input.grossAmount * 12 : input.grossAmount;
   const klasse = input.steuerklasse;
@@ -67,7 +74,11 @@ export function calculate(input: ScenarioInput): CalculationResult {
   const zvE = Math.max(
     0,
     Math.floor(
-      grossAnnual - werbungskosten - C.sonderausgabenPauschbetrag - vsp - entlastung,
+      grossAnnual -
+        werbungskosten -
+        (klasse === 6 ? 0 : C.sonderausgabenPauschbetrag) -
+        vsp -
+        entlastung,
     ),
   );
 
@@ -133,7 +144,12 @@ export function calculate(input: ScenarioInput): CalculationResult {
       "Steuerklasse V/VI: Lohnsteuer als enge Näherung (1,25/0,75-Verfahren §39b EStG).",
     );
   }
-  if (isPrivate) {
+  if (input.midijob) {
+    notes.push(
+      "Übergangsbereich (Midijob): reduzierte Arbeitnehmerbeiträge, höherer Arbeitgeberanteil (§ 20a SGB IV).",
+    );
+  }
+  if (isPrivate && !input.noHealth) {
     notes.push(
       input.health.kind === "pkv_zuschuss"
         ? "PKV: Arbeitgeberzuschuss auf den gesetzlichen Höchstzuschuss begrenzt."
@@ -240,7 +256,7 @@ const PROVISIONAL_NOTE = (year: number) =>
  * and a Pauschsteuer (2%, from 2027 planned 5%), plus the usual levies.
  */
 function calculateMinijob(
-  input: ScenarioInput,
+  input: JobInput,
   grossAnnual: number,
   C: YearConstants,
 ): CalculationResult {

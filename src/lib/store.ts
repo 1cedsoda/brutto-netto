@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ScenarioInput } from "./tax/types";
+import type { EmployerExtras, Job, JobKind, ScenarioInput } from "./tax/types";
 import { currentTaxYear, getConstants } from "./tax/constants";
 
 export type ScenarioKey = "A" | "B";
@@ -13,18 +13,36 @@ export type Theme = "light" | "dark" | "system";
 // The tax year defaults to the current calendar year (clamped to the supported years).
 const DEFAULT_YEAR = currentTaxYear();
 
+export const defaultEmployer: EmployerExtras = {
+  insolvenzgeld: true, // U3
+  u1Pct: 1.1, // U1 (Entgeltfortzahlung Krankheit) — on by default
+  u2Pct: 0.5, // U2 (Mutterschaftsumlage) — on by default
+  unfallPct: 1.3, // Unfallversicherung (BG) — on by default
+};
+
+let jobCounter = 0;
+export const newJobId = () => `j${Date.now().toString(36)}${(jobCounter++).toString(36)}`;
+
+export function newJob(kind: JobKind, grossAmount: number): Job {
+  return { id: newJobId(), kind, grossAmount, employer: { ...defaultEmployer } };
+}
+
+/** Default amount (per month) when adding a further job of a kind. */
+export const ADD_JOB_MONTHLY: Record<JobKind, number> = {
+  employee: 1500,
+  minijob: 400,
+  self: 1000,
+};
+
 export const defaultScenario: ScenarioInput = {
   year: DEFAULT_YEAR,
   grossPeriod: "monthly",
-  grossAmount: 4300,
   steuerklasse: 1,
   bundesland: "NW",
   church: false,
   children: 0,
   age: 43,
   pensionInsured: true,
-  minijob: false,
-  selfEmployed: false,
   rvCommission: false,
   rvProposal: "gruender",
   health: {
@@ -34,24 +52,23 @@ export const defaultScenario: ScenarioInput = {
     privateMonthlyPremium: 600,
     basisPct: 85,
   },
-  employer: {
-    insolvenzgeld: true, // U3
-    u1Pct: 1.1, // U1 (Entgeltfortzahlung Krankheit) — on by default
-    u2Pct: 0.5, // U2 (Mutterschaftsumlage) — on by default
-    unfallPct: 1.3, // Unfallversicherung (BG) — on by default
-  },
+  jobs: [{ id: "main", kind: "employee", grossAmount: 4300, employer: { ...defaultEmployer } }],
 };
 
 /** A blank scenario (used by the "Zurücksetzen" / clear action). */
 export const emptyScenario: ScenarioInput = {
   ...defaultScenario,
-  grossAmount: 0,
   church: false,
   children: 0,
-  minijob: false,
-  selfEmployed: false,
   health: { kind: "gkv", zusatzbeitragPct: 0, fundId: "custom", privateMonthlyPremium: 0, basisPct: 85 },
-  employer: { insolvenzgeld: false, u1Pct: 0, u2Pct: 0, unfallPct: 0 },
+  jobs: [
+    {
+      id: "main",
+      kind: "employee",
+      grossAmount: 0,
+      employer: { insolvenzgeld: false, u1Pct: 0, u2Pct: 0, unfallPct: 0 },
+    },
+  ],
 };
 
 function withoutYear(sc: ScenarioInput): Omit<ScenarioInput, "year"> {
@@ -59,7 +76,7 @@ function withoutYear(sc: ScenarioInput): Omit<ScenarioInput, "year"> {
   return rest;
 }
 
-export type FormSection = "personTax" | "income" | "social" | "employer";
+export type FormSection = "personTax" | "income" | "social";
 
 /** Default values for the fields of one form section. */
 function sectionDefaults(section: FormSection, current: ScenarioInput): Partial<ScenarioInput> {
@@ -67,8 +84,6 @@ function sectionDefaults(section: FormSection, current: ScenarioInput): Partial<
   switch (section) {
     case "personTax":
       return {
-        minijob: d.minijob,
-        selfEmployed: d.selfEmployed,
         year: d.year,
         steuerklasse: d.steuerklasse,
         bundesland: d.bundesland,
@@ -76,21 +91,43 @@ function sectionDefaults(section: FormSection, current: ScenarioInput): Partial<
         children: d.children,
         church: d.church,
       };
-    case "income":
-      // Keep the chosen period; convert the default monthly amount if needed.
+    case "income": {
+      // One default main job; keep the chosen period.
+      const f = current.grossPeriod === "yearly" ? 12 : 1;
       return {
-        grossAmount: current.grossPeriod === "yearly" ? d.grossAmount * 12 : d.grossAmount,
+        jobs: d.jobs.map((j) => ({ ...j, grossAmount: j.grossAmount * f, employer: { ...j.employer } })),
+        rvCommission: d.rvCommission,
+        rvProposal: d.rvProposal,
       };
+    }
     case "social":
       return {
         health: { ...d.health },
         pensionInsured: d.pensionInsured,
-        rvCommission: d.rvCommission,
-        rvProposal: d.rvProposal,
       };
-    case "employer":
-      return { employer: { ...d.employer } };
   }
+}
+
+/** Convert a pre-multi-job (flat) scenario into the job-list model. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function migrateLegacy(sc: any): ScenarioInput {
+  if (Array.isArray(sc.jobs)) return sc as ScenarioInput;
+  const kind: JobKind = sc.selfEmployed ? "self" : sc.minijob ? "minijob" : "employee";
+  const { grossAmount, minijob: _m, selfEmployed: _s, employer, ...rest } = sc;
+  return {
+    ...defaultScenario,
+    ...rest,
+    rvCommission: sc.rvCommission ?? false,
+    rvProposal: sc.rvProposal ?? "gruender",
+    jobs: [
+      {
+        id: "main",
+        kind,
+        grossAmount: grossAmount ?? 0,
+        employer: { ...defaultEmployer, ...(employer ?? {}) },
+      },
+    ],
+  };
 }
 
 interface CalcState {
@@ -113,6 +150,10 @@ interface CalcState {
   setScenario: (key: ScenarioKey, value: ScenarioInput) => void;
   /** Load the recommended defaults. */
   reset: (key: ScenarioKey) => void;
+  /** Add a further job (amount in the scenario's period). */
+  addJob: (key: ScenarioKey, kind?: JobKind) => void;
+  removeJob: (key: ScenarioKey, id: string) => void;
+  setJobKind: (key: ScenarioKey, id: string, kind: JobKind) => void;
   /** Reset the fields of a single form section to their defaults. */
   resetSection: (key: ScenarioKey, section: FormSection) => void;
   /** Clear to a blank scenario. */
@@ -129,7 +170,11 @@ export const useCalcStore = create<CalcState>()(
   persist(
     (set) => ({
       scenarioA: defaultScenario,
-      scenarioB: { ...defaultScenario, grossAmount: 4500, steuerklasse: 3 },
+      scenarioB: {
+        ...defaultScenario,
+        steuerklasse: 3,
+        jobs: [{ ...defaultScenario.jobs[0], grossAmount: 4500 }],
+      },
       compareMode: false,
       display: "monthly",
       lang: "de",
@@ -143,6 +188,38 @@ export const useCalcStore = create<CalcState>()(
           [key === "A" ? "scenarioA" : "scenarioB"]: defaultScenario,
           formVersion: s.formVersion + 1,
         })),
+      addJob: (key, kind = "employee") =>
+        set((s) => {
+          const prop = key === "A" ? "scenarioA" : "scenarioB";
+          const sc = s[prop];
+          // Only one self-employment per person (all self-employed income combined).
+          const k: JobKind = kind === "self" && sc.jobs.some((j) => j.kind === "self") ? "employee" : kind;
+          const f = sc.grossPeriod === "yearly" ? 12 : 1;
+          return {
+            [prop]: { ...sc, jobs: [...sc.jobs, newJob(k, ADD_JOB_MONTHLY[k] * f)] },
+            formVersion: s.formVersion + 1,
+          };
+        }),
+      removeJob: (key, id) =>
+        set((s) => {
+          const prop = key === "A" ? "scenarioA" : "scenarioB";
+          const sc = s[prop];
+          if (sc.jobs.length <= 1) return {};
+          return {
+            [prop]: { ...sc, jobs: sc.jobs.filter((j) => j.id !== id) },
+            formVersion: s.formVersion + 1,
+          };
+        }),
+      setJobKind: (key, id, kind) =>
+        set((s) => {
+          const prop = key === "A" ? "scenarioA" : "scenarioB";
+          const sc = s[prop];
+          if (kind === "self" && sc.jobs.some((j) => j.kind === "self" && j.id !== id)) return {};
+          return {
+            [prop]: { ...sc, jobs: sc.jobs.map((j) => (j.id === id ? { ...j, kind } : j)) },
+            formVersion: s.formVersion + 1,
+          };
+        }),
       resetSection: (key, section) =>
         set((s) => {
           const prop = key === "A" ? "scenarioA" : "scenarioB";
@@ -179,7 +256,10 @@ export const useCalcStore = create<CalcState>()(
             return {
               ...sc,
               grossPeriod: d,
-              grossAmount: Math.round(sc.grossAmount * factor * 100) / 100,
+              jobs: sc.jobs.map((j) => ({
+                ...j,
+                grossAmount: Math.round(j.grossAmount * factor * 100) / 100,
+              })),
             };
           };
           return {
@@ -192,7 +272,7 @@ export const useCalcStore = create<CalcState>()(
     }),
     {
       name: "brutto-netto-2025",
-      version: 8,
+      version: 9,
       // The tax year is deliberately not persisted: every visit starts in the
       // current calendar year (see `merge`).
       partialize: (s) => ({
@@ -218,7 +298,8 @@ export const useCalcStore = create<CalcState>()(
         const s = persisted as Partial<CalcState> | undefined;
         if (!s) return persisted as CalcState;
         const display: DisplayPeriod = s.display ?? "monthly";
-        const fix = (sc: ScenarioInput | undefined) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const fix = (sc: any) => {
           if (!sc) return;
           if (version < 2 && !sc.year) sc.year = 2025;
           if (version < 3) {
@@ -246,6 +327,9 @@ export const useCalcStore = create<CalcState>()(
         };
         fix(s.scenarioA);
         fix(s.scenarioB);
+        // v9: multi-job model
+        if (s.scenarioA) s.scenarioA = migrateLegacy(s.scenarioA);
+        if (s.scenarioB) s.scenarioB = migrateLegacy(s.scenarioB);
         return s as CalcState;
       },
     },

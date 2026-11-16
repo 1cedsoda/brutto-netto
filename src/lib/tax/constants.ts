@@ -61,6 +61,10 @@ export interface YearConstants {
 
   // Minijob (geringfügige Beschäftigung)
   minijobLimit: number; // monthly earnings ceiling (Geringfügigkeitsgrenze)
+  /** Übergangsbereich (Midijob): upper bound, monthly EUR */
+  midijobUpper: number;
+  /** Faktor F for the Übergangsbereich formula (§20a SGB IV) */
+  faktorF: number;
   minijobRvPauschal: number; // employer flat pension rate, %
   minijobKvPauschal: number; // employer flat health rate (only if GKV), %
   minijobPauschsteuer: number; // employer flat tax (LSt+Soli+KiSt), %
@@ -98,6 +102,7 @@ const COMMON = {
   pvSachsenEmployeeExtra: 0.5,
   insolvenzgeld: 0.15,
   minijobRvPauschal: 15,
+  midijobUpper: 2_000,
   minijobKvPauschal: 13,
   minijobPauschsteuer: 2,
   arbeitnehmerPauschbetrag: 1_230,
@@ -139,6 +144,7 @@ const YEARS: Record<TaxYear, YearConstants> = {
     soliFreigrenzeIII: 39_900,
     defaultZusatz: 2.5,
     minijobLimit: 556,
+    faktorF: 0.6683,
   },
   2026: {
     ...COMMON,
@@ -166,6 +172,7 @@ const YEARS: Record<TaxYear, YearConstants> = {
     soliFreigrenzeIII: 40_700,
     defaultZusatz: 2.9,
     minijobLimit: 603,
+    faktorF: 0.6619,
   },
   2027: {
     ...COMMON,
@@ -197,6 +204,7 @@ const YEARS: Record<TaxYear, YearConstants> = {
     soliFreigrenzeIII: 40_700,
     defaultZusatz: 2.9,
     minijobLimit: 633,
+    faktorF: 0.7683, // voraussichtlich; neue Formel (14,6 % + Ø-ZB + 15 %) / GSV-Satz
     minijobKvPauschal: 17.5, // 14,6 % + Ø-Zusatzbeitrag 2,9 %
     minijobPauschsteuer: 5,
   },

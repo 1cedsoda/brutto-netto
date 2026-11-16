@@ -45,7 +45,8 @@ function splittingTariff(zvE: number, C: YearConstants): number {
  */
 function tariffV(zvE: number, C: YearConstants): number {
   const x = Math.max(0, zvE);
-  return (estTariff(x * 1.25, C) - estTariff(x * 0.75, C)) * 2;
+  // Mindeststeuer: at least 14 % of the taxable income (§39b Abs. 2 Satz 7 EStG).
+  return Math.max((estTariff(x * 1.25, C) - estTariff(x * 0.75, C)) * 2, 0.14 * x);
 }
 
 /** Annual Lohnsteuer (before Soli/KiSt) for the given taxable income & class. */

@@ -15,6 +15,24 @@ Tracking und keine Cookies. Eingaben bleiben im Local Storage.
 
 Voreingestellt ist immer das aktuelle Kalenderjahr (auf die unterstützten Jahre begrenzt).
 
+## Mehrere Jobs
+
+Eine Person kann mehrere Einkünfte haben (Angestellt, Minijob, Selbstständig). Der erste Job
+ist der Hauptjob. Umgesetzt (`src/lib/tax/scenario.ts`):
+
+- Weitere Beschäftigungen laufen mit Steuerklasse VI.
+- Sozialabgaben werden über alle Beschäftigungen zusammengerechnet; die
+  Beitragsbemessungsgrenzen gelten für die Summe und werden anteilig verteilt.
+- Der erste Minijob neben einem Hauptjob bleibt pauschal, jeder weitere wird zum Hauptjob
+  addiert (SV-pflichtig, ohne Arbeitslosenversicherung). Mehrere Minijobs ohne Hauptjob werden
+  zusammengerechnet.
+- Übergangsbereich (Midijob, 603,01–2.000 €, Faktor F) auf das gemeinsame Entgelt.
+- Selbstständigkeit neben einer Beschäftigung: Kranken-/Pflegeversicherung über den Job.
+- Bei mehreren steuerpflichtigen Einkünften wird die Einkommensteuer fürs Jahr gemeinsam
+  berechnet und mit der einbehaltenen Lohnsteuer verglichen (Erstattung/Nachzahlung).
+
+Die Auswertung zeigt dann eine Spalte pro Job und den Jahresausgleich.
+
 ## Selbstständige: Vorschlag der Rentenkommission
 
 Der Schalter „Selbstständig / Gründer:in" rechnet mit der Rentenversicherungspflicht, die die

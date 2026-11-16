@@ -1,7 +1,13 @@
 // Render a scenario (inputs + computed result) as plain text for pasting into
 // other tools / AI systems.
 
-import type { CalculationResult, LineItem, ScenarioInput } from "./tax/types";
+import type {
+  JobKind,
+  JobTreatment,
+  LineItem,
+  ScenarioInput,
+  ScenarioResult,
+} from "./tax/types";
 import { STATES, KRANKENKASSEN } from "./tax/constants";
 import { formatEUR, formatShare } from "./format";
 
@@ -22,27 +28,32 @@ const HEALTH_LABEL: Record<ScenarioInput["health"]["kind"], string> = {
 
 const yn = (b: boolean) => (b ? "ja" : "nein");
 
-function inputsBlock(input: ScenarioInput): string {
+const KIND_LABEL: Record<JobKind, string> = {
+  employee: "Angestellt",
+  minijob: "Minijob",
+  self: "Selbstständig",
+};
+
+export const TREATMENT_LABEL: Record<JobTreatment, string> = {
+  main: "Hauptbeschäftigung",
+  midijob: "Hauptbeschäftigung (Übergangsbereich/Midijob)",
+  side: "Nebenbeschäftigung, Steuerklasse VI",
+  minijob: "Minijob (pauschal)",
+  "minijob-combined": "Minijob, mit Hauptjob zusammengerechnet (SV-pflichtig)",
+  self: "Selbstständig",
+};
+
+function inputsBlock(input: ScenarioInput, res: ScenarioResult): string {
   const state = STATES.find((s) => s.id === input.bundesland)?.label ?? input.bundesland;
+  const per = input.grossPeriod === "monthly" ? "Monat" : "Jahr";
   const lines: string[] = [
     `Steuerjahr: ${input.year}`,
-    `${input.selfEmployed ? "Bruttoeinkommen" : "Bruttogehalt"}: ${formatEUR(input.grossAmount)} / ${input.grossPeriod === "monthly" ? "Monat" : "Jahr"}`,
     `Steuerklasse: ${ROMAN[input.steuerklasse]}`,
     `Bundesland: ${state}`,
     `Alter: ${input.age}`,
     `Kinder: ${input.children}`,
     `Kirchensteuer: ${yn(input.church)}`,
-    `Minijob: ${yn(input.minijob)}`,
-    `Selbstständig: ${yn(input.selfEmployed)}${
-      input.selfEmployed && input.rvCommission
-        ? ` (Rente nach VORSCHLAG der Rentenkommission, kein geltendes Recht: ${
-            { gruender: "halber Regelbeitrag", regel: "Regelbeitrag", einkommen: "einkommensbezogen" }[
-              input.rvProposal
-            ]
-          })`
-        : ""
-    }`,
-    `Gesetzlich rentenversichert: ${yn(input.pensionInsured)}`,
+    `Gesetzlich renten-/arbeitslosenversichert: ${yn(input.pensionInsured)}`,
     `Krankenversicherung: ${HEALTH_LABEL[input.health.kind]}`,
   ];
   if (input.health.kind === "gkv") {
@@ -54,12 +65,31 @@ function inputsBlock(input: ScenarioInput): string {
     lines.push(`  PKV-Prämie: ${formatEUR(input.health.privateMonthlyPremium)} / Monat`);
     lines.push(`  Basistarif-Anteil (steuerlich): ${input.health.basisPct} %`);
   }
-  const emp: string[] = [];
-  if (input.employer.insolvenzgeld) emp.push("Insolvenzgeldumlage (U3)");
-  if (input.employer.u1Pct) emp.push(`U1 ${input.employer.u1Pct} %`);
-  if (input.employer.u2Pct) emp.push(`U2 ${input.employer.u2Pct} %`);
-  if (input.employer.unfallPct) emp.push(`Unfallvers. ${input.employer.unfallPct} %`);
-  lines.push(`Arbeitgeber-Umlagen: ${emp.length ? emp.join(", ") : "keine"}`);
+  lines.push(`Jobs / Einkünfte:`);
+  res.jobs.forEach(({ job, index, treatment }) => {
+    const emp: string[] = [];
+    if (job.kind !== "self") {
+      if (job.employer.insolvenzgeld) emp.push("U3");
+      if (job.employer.u1Pct) emp.push(`U1 ${job.employer.u1Pct} %`);
+      if (job.employer.u2Pct) emp.push(`U2 ${job.employer.u2Pct} %`);
+      if (job.employer.unfallPct) emp.push(`BG ${job.employer.unfallPct} %`);
+    }
+    lines.push(
+      `  ${index + 1}. ${KIND_LABEL[job.kind]}: ${formatEUR(job.grossAmount)} / ${per} — ${TREATMENT_LABEL[treatment]}` +
+        (emp.length ? ` (Umlagen: ${emp.join(", ")})` : ""),
+    );
+    if (job.kind === "self") {
+      lines.push(
+        input.rvCommission
+          ? `     Rente nach VORSCHLAG der Rentenkommission (kein geltendes Recht): ${
+              { gruender: "halber Regelbeitrag", regel: "Regelbeitrag", einkommen: "einkommensbezogen" }[
+                input.rvProposal
+              ]
+            }`
+          : "     Rente: geltendes Recht (keine Pflichtversicherung)",
+      );
+    }
+  });
   return lines.join("\n");
 }
 
@@ -76,9 +106,10 @@ function item(it: LineItem, base?: number): string | null {
 
 export function scenarioToText(
   input: ScenarioInput,
-  result: CalculationResult,
+  res: ScenarioResult,
   title = "Szenario",
 ): string {
+  const result = res.total;
   const base = result.employerTotalCost.monthly;
   const e = result.employeeSocial;
   const a = result.employerSocial;
@@ -92,7 +123,7 @@ export function scenarioToText(
   }
   out.push("");
   out.push("EINGABEN");
-  out.push(inputsBlock(input));
+  out.push(inputsBlock(input, res));
   out.push("");
   out.push("ERGEBNIS (Bezug: Arbeitgeber-Gesamtkosten = 100 %)");
   out.push(`Bruttolohn: ${row(result.gross, base)}`);
@@ -129,6 +160,27 @@ export function scenarioToText(
     .filter(Boolean)
     .forEach((l) => out.push(l as string));
   out.push("");
+  if (res.jobs.length > 1) {
+    out.push("PRO JOB (Abrechnung des jeweiligen Arbeitgebers)");
+    res.jobs.forEach(({ index, job, result: r }) => {
+      out.push(
+        `  ${index + 1}. ${KIND_LABEL[job.kind]}: Brutto ${formatEUR(r.gross.monthly)} · Steuern ${formatEUR(r.tax.total.monthly)} · SV ${formatEUR(r.employeeSocial.total.monthly)} · Netto ${formatEUR(r.net.monthly)} · AG-Kosten ${formatEUR(r.employerTotalCost.monthly)} (je Monat)`,
+      );
+    });
+    out.push("");
+  }
+  if (res.annual) {
+    const a = res.annual;
+    out.push("STEUERERKLÄRUNG (Jahr)");
+    out.push(`  Einkommensteuer inkl. Soli/KiSt: ${formatEUR(a.total)}`);
+    out.push(`  Bereits einbehaltene Lohnsteuer: ${formatEUR(a.withheld)}`);
+    out.push(
+      a.balance >= 0
+        ? `  Voraussichtliche Nachzahlung: ${formatEUR(a.balance)}`
+        : `  Voraussichtliche Erstattung: ${formatEUR(-a.balance)}`,
+    );
+    out.push("");
+  }
   out.push(`zu versteuerndes Einkommen: ${formatEUR(result.meta.zvE)} / Jahr`);
   out.push(`Vorsorgepauschale: ${formatEUR(result.meta.vorsorgepauschale)} / Jahr`);
   if (result.meta.notes.length) {

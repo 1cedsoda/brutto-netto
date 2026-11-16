@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Check, Copy } from "lucide-react";
 import { useCalcStore } from "@/lib/store";
-import { calculate } from "@/lib/tax/calculate";
+import { calculateScenario } from "@/lib/tax/scenario";
 import { scenarioToText } from "@/lib/export";
 import { useT } from "@/lib/i18n";
 
@@ -15,10 +15,10 @@ export function CopyButton() {
     const s = useCalcStore.getState();
     const text = s.compareMode
       ? [
-          scenarioToText(s.scenarioA, calculate(s.scenarioA), "Szenario A"),
-          scenarioToText(s.scenarioB, calculate(s.scenarioB), "Szenario B"),
+          scenarioToText(s.scenarioA, calculateScenario(s.scenarioA), "Szenario A"),
+          scenarioToText(s.scenarioB, calculateScenario(s.scenarioB), "Szenario B"),
         ].join("\n\n────────────────────────\n\n")
-      : scenarioToText(s.scenarioA, calculate(s.scenarioA));
+      : scenarioToText(s.scenarioA, calculateScenario(s.scenarioA));
 
     try {
       await navigator.clipboard.writeText(text);

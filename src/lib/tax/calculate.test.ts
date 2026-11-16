@@ -1,11 +1,11 @@
 import { describe, it, expect } from "bun:test";
 import { calculate } from "./calculate";
-import type { HealthInsurance, ScenarioInput } from "./types";
+import type { HealthInsurance, JobInput } from "./types";
 
 // ── Base case ─────────────────────────────────────────────────────────────
 // 5.000 €/Monat, Steuerklasse I, NRW, kinderlos (30 J.), GKV mit 2,5 %
 // Zusatzbeitrag, gesetzlich rentenversichert, Steuerjahr 2025.
-const BASE: ScenarioInput = {
+const BASE: JobInput = {
   year: 2025,
   grossPeriod: "monthly",
   grossAmount: 5000,
@@ -30,7 +30,7 @@ const BASE: ScenarioInput = {
 };
 
 /** Calculate the base case with a shallow patch. */
-const calc = (patch: Partial<ScenarioInput> = {}) => calculate({ ...BASE, ...patch });
+const calc = (patch: Partial<JobInput> = {}) => calculate({ ...BASE, ...patch });
 /** Patch only the health sub-object. */
 const calcH = (patch: Partial<HealthInsurance>) =>
   calculate({ ...BASE, health: { ...BASE.health, ...patch } });
@@ -213,9 +213,9 @@ describe("GKV Zusatzbeitrag vs. base", () => {
 
 // ── Minijob base case ───────────────────────────────────────────────────────
 // 556 €/Monat (Grenze 2025), GKV, rentenversicherungspflichtig.
-const MINI: ScenarioInput = { ...BASE, minijob: true, grossAmount: 556 };
+const MINI: JobInput = { ...BASE, minijob: true, grossAmount: 556 };
 const mini = calculate(MINI);
-const calcM = (patch: Partial<ScenarioInput> = {}) => calculate({ ...MINI, ...patch });
+const calcM = (patch: Partial<JobInput> = {}) => calculate({ ...MINI, ...patch });
 
 describe("Minijob base case (556 € GKV, RV-pflichtig, 2025)", () => {
   it("no employee tax", () => {
@@ -324,7 +324,7 @@ describe("currentTaxYear", () => {
 
 // ── Selbstständige: Vorschlag Rentenkommission ──────────────────────────
 describe("self-employed (Rentenkommission proposal, not law)", () => {
-  const se = (patch: Partial<ScenarioInput> = {}) =>
+  const se = (patch: Partial<JobInput> = {}) =>
     calc({ selfEmployed: true, rvCommission: true, year: 2026, grossAmount: 4_000, ...patch });
 
   it("switch off = current law: no pension contribution, not flagged", () => {

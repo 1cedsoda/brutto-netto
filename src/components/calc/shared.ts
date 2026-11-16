@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { calculate } from "@/lib/tax/calculate";
-import type { CalculationResult } from "@/lib/tax/types";
+import { calculateScenario } from "@/lib/tax/scenario";
+import type { CalculationResult, ScenarioResult } from "@/lib/tax/types";
 import { useCalcStore, type ScenarioKey } from "@/lib/store";
 
 /** Semantic colours shared between charts and tables. */
@@ -11,9 +11,14 @@ export const SEGMENTS = {
   socialAG: { label: "SV Arbeitgeber", color: "var(--color-slate-400, #94a3b8)" },
 } as const;
 
-export function useResult(key: ScenarioKey): CalculationResult {
+export function useScenarioResult(key: ScenarioKey): ScenarioResult {
   const scenario = useCalcStore((s) => (key === "A" ? s.scenarioA : s.scenarioB));
-  return useMemo(() => calculate(scenario), [scenario]);
+  return useMemo(() => calculateScenario(scenario), [scenario]);
+}
+
+/** Combined result of all jobs of a scenario. */
+export function useResult(key: ScenarioKey): CalculationResult {
+  return useScenarioResult(key).total;
 }
 
 /** Pick monthly or yearly from a {monthly,yearly} pair based on the global toggle. */

@@ -4,7 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Info } from "lucide-react";
 import { CompositionBar, BreakdownDonut } from "./Charts";
 import { MoneyPair } from "./Money";
-import { useResult } from "./shared";
+import { useScenarioResult } from "./shared";
+import { JobsBreakdown } from "./JobsBreakdown";
 import { useCalcStore, type ScenarioKey, type DisplayPeriod } from "@/lib/store";
 import { formatPct, formatShare } from "@/lib/format";
 import { useT, useLabel } from "@/lib/i18n";
@@ -171,7 +172,9 @@ function UnifiedTable({
 
 export function ResultsPanel({ scenarioKey }: { scenarioKey: ScenarioKey }) {
   const t = useT();
-  const result = useResult(scenarioKey);
+  const scenarioResult = useScenarioResult(scenarioKey);
+  const result = scenarioResult.total;
+  const hasSelf = scenarioResult.jobs.some((j) => j.job.kind === "self");
   const primary = useCalcStore((s) => s.display);
 
   // The employer's total cost is the 100% reference.
@@ -200,7 +203,7 @@ export function ResultsPanel({ scenarioKey }: { scenarioKey: ScenarioKey }) {
           accent="gross"
         />
         <StatTile
-          label={result.meta.selfEmployed ? t("r.nettoSelf") : t("r.nettoAN")}
+          label={hasSelf ? t("r.nettoSelf") : t("r.nettoAN")}
           value={result.net}
           primary={primary}
           share={share(result.net)}
@@ -219,7 +222,7 @@ export function ResultsPanel({ scenarioKey }: { scenarioKey: ScenarioKey }) {
           />
         ) : (
           <StatTile
-            label={t("r.agKosten")}
+            label={hasSelf ? t("r.costMixed") : t("r.agKosten")}
             value={result.employerTotalCost}
             primary={primary}
             share={share(result.employerTotalCost)}
@@ -227,6 +230,10 @@ export function ResultsPanel({ scenarioKey }: { scenarioKey: ScenarioKey }) {
           />
         )}
       </div>
+
+      {(scenarioResult.jobs.length > 1 || scenarioResult.annual) && (
+        <JobsBreakdown res={scenarioResult} primary={primary} />
+      )}
 
       {/* Flow bar (full chain) */}
       <Card>
