@@ -45,7 +45,7 @@ export default function Calculator() {
     <TooltipProvider delayDuration={150}>
       <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:py-8">
         {/* Header */}
-        <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <header className="mb-5">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
               {t("app.title")}
@@ -53,7 +53,45 @@ export default function Calculator() {
             <p className="mt-1 text-sm text-muted-foreground">{t("app.subtitle")}</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+        </header>
+
+        {/* Toolbar: inputs actions (left) + view settings (right), same row */}
+        <div className="mb-4 grid grid-cols-1 items-center gap-3 lg:grid-cols-[minmax(320px,380px)_1fr] lg:gap-6">
+          <div className="flex items-center gap-1">
+            {compareMode ? (
+              <>
+                <Button variant="outline" size="sm" onClick={copyAToB}>
+                  <Copy className="mr-1.5 h-3.5 w-3.5" /> {t("action.copyAtoB")}
+                </Button>
+                <Button variant="outline" size="sm" onClick={swap}>
+                  <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" /> {t("action.swap")}
+                </Button>
+              </>
+            ) : (
+              <>
+                <h2 className="mr-auto text-sm font-medium text-muted-foreground">
+                  {t("action.inputs")}
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground"
+                  onClick={() => reset("A")}
+                >
+                  <RotateCcw className="mr-1 h-3 w-3" /> {t("action.defaults")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground"
+                  onClick={() => clear("A")}
+                >
+                  <Undo2 className="mr-1 h-3 w-3" /> {t("action.reset")}
+                </Button>
+              </>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             <ToggleGroup
               type="single"
               value={display}
@@ -111,46 +149,13 @@ export default function Calculator() {
               {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
           </div>
-        </header>
-
-        {/* Compare-mode actions */}
-        {compareMode && (
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" onClick={copyAToB}>
-              <Copy className="mr-1.5 h-3.5 w-3.5" /> {t("action.copyAtoB")}
-            </Button>
-            <Button variant="outline" size="sm" onClick={swap}>
-              <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" /> {t("action.swap")}
-            </Button>
-          </div>
-        )}
+        </div>
 
         {compareMode ? (
           <CompareView />
         ) : (
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(320px,380px)_1fr]">
             <div className="grid min-w-0 gap-4">
-              <div className="flex items-center gap-1">
-                <h2 className="mr-auto text-sm font-medium text-muted-foreground">
-                  {t("action.inputs")}
-                </h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-xs text-muted-foreground"
-                  onClick={() => reset("A")}
-                >
-                  <RotateCcw className="mr-1 h-3 w-3" /> {t("action.defaults")}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-xs text-muted-foreground"
-                  onClick={() => clear("A")}
-                >
-                  <Undo2 className="mr-1 h-3 w-3" /> {t("action.reset")}
-                </Button>
-              </div>
               <ScenarioForm key={`A-${formVersion}`} scenarioKey="A" cards />
             </div>
             <ResultsPanel scenarioKey="A" />
