@@ -195,20 +195,6 @@ export function ResultsPanel({ scenarioKey }: { scenarioKey: ScenarioKey }) {
       )}
       {/* Hero stat tiles */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <StatTile
-          label={t("r.brutto")}
-          value={result.gross}
-          primary={primary}
-          share={share(result.gross)}
-          accent="gross"
-        />
-        <StatTile
-          label={hasSelf ? t("r.nettoSelf") : t("r.nettoAN")}
-          value={result.net}
-          primary={primary}
-          share={share(result.net)}
-          accent="net"
-        />
         {result.meta.selfEmployed ? (
           <StatTile
             label={t("r.abgaben")}
@@ -229,6 +215,20 @@ export function ResultsPanel({ scenarioKey }: { scenarioKey: ScenarioKey }) {
             accent="cost"
           />
         )}
+        <StatTile
+          label={t("r.brutto")}
+          value={result.gross}
+          primary={primary}
+          share={share(result.gross)}
+          accent="gross"
+        />
+        <StatTile
+          label={hasSelf ? t("r.nettoSelf") : t("r.nettoAN")}
+          value={result.net}
+          primary={primary}
+          share={share(result.net)}
+          accent="net"
+        />
       </div>
 
       {/* Overview: composition donut + burden curve side by side */}

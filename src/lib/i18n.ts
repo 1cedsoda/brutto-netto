@@ -145,6 +145,7 @@ const de = {
   "ch.steuern": "Steuern",
   "ch.sozial": "Sozialabgaben",
   "ch.umlage": "Umlage",
+  "ch.employerShare": "davon AG-Anteil",
   "ch.agKosten": "AG-Kosten",
   "ch.brutto": "Brutto",
 
@@ -303,6 +304,7 @@ const en: Record<Key, string> = {
   "ch.steuern": "Taxes",
   "ch.sozial": "Social",
   "ch.umlage": "Levies",
+  "ch.employerShare": "thereof employer",
   "ch.agKosten": "Empl. cost",
   "ch.brutto": "Gross",
 

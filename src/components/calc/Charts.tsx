@@ -23,6 +23,8 @@ export interface Slice {
   label: string;
   value: number;
   color: string;
+  /** part of `value` the employer pays on top of the agreed gross wage */
+  employer: number;
 }
 
 function pickField(v: { monthly: number; yearly: number }, p: DisplayPeriod) {
@@ -75,13 +77,19 @@ function buildSlices(
   const umlage = f(a.insolvenzgeld) + f(a.u1) + f(a.u2) + f(a.unfall);
 
   const out: Slice[] = [];
-  const push = (key: string, label: string, value: number, color: string) => {
-    if (value > 0.005) out.push({ key, label, value, color });
+  const push = (key: string, label: string, value: number, color: string, employer = 0) => {
+    if (value > 0.005) out.push({ key, label, value, color, employer: Math.min(employer, value) });
   };
   push("net", t("ch.net"), net, SLICE_COLORS.net);
-  push("steuern", t("ch.steuern"), steuern, SLICE_COLORS.steuern);
-  push("sozial", t("ch.sozial"), sozial, SLICE_COLORS.sozial);
-  push("umlage", t("ch.umlage"), umlage, SLICE_COLORS.umlage);
+  push("steuern", t("ch.steuern"), steuern, SLICE_COLORS.steuern, f(a.pauschsteuer));
+  push(
+    "sozial",
+    t("ch.sozial"),
+    sozial,
+    SLICE_COLORS.sozial,
+    f(a.rente) + f(a.arbeitslosen) + f(a.kranken) + f(a.pflege),
+  );
+  push("umlage", t("ch.umlage"), umlage, SLICE_COLORS.umlage, umlage);
 
   return {
     slices: out,
@@ -160,6 +168,25 @@ export function BreakdownDonut({
   const t = useT();
   const { slices, total, totalLabel } = buildSlices(result, period, t);
   const config = toConfig(slices);
+  const employerTotal = slices.reduce((a, s) => a + s.employer, 0);
+
+  // Hatched overlay for the employer's share on top of the gross wage. The
+  // angles replicate Recharts' layout (full circle, paddingAngle between all
+  // sectors) so the hatching sits exactly at the end of its slice.
+  const PAD = 1.5;
+  const sum = slices.reduce((a, s) => a + s.value, 0);
+  const realTotal = 360 - slices.length * PAD;
+  const overlays: { key: string; start: number; end: number }[] = [];
+  let angle = 0;
+  slices.forEach((s, i) => {
+    const start = i === 0 ? 0 : angle + PAD;
+    const span = sum > 0 ? (s.value / sum) * realTotal : 0;
+    const end = start + span;
+    if (s.employer > 0.005) {
+      overlays.push({ key: s.key, start: end - span * (s.employer / s.value), end });
+    }
+    angle = end;
+  });
 
   const renderPieLabel = (props: {
     cx?: number;
@@ -200,6 +227,18 @@ export function BreakdownDonut({
     <div className="relative mx-auto aspect-square w-full max-w-[200px]">
       <ChartContainer config={config} className="aspect-square h-full w-full">
         <PieChart>
+          <defs>
+            <pattern
+              id="employer-hatch"
+              patternUnits="userSpaceOnUse"
+              width="5"
+              height="5"
+              patternTransform="rotate(45)"
+            >
+              <rect width="5" height="5" fill="rgba(0,0,0,0.18)" />
+              <line x1="0" y1="0" x2="0" y2="5" stroke="rgba(255,255,255,0.75)" strokeWidth="1.6" />
+            </pattern>
+          </defs>
           <ChartTooltip
             content={
               <ChartTooltipContent
@@ -224,7 +263,7 @@ export function BreakdownDonut({
             nameKey="key"
             innerRadius="62%"
             outerRadius="100%"
-            paddingAngle={1.5}
+            paddingAngle={PAD}
             stroke="var(--card)"
             strokeWidth={1}
             label={renderPieLabel}
@@ -235,6 +274,23 @@ export function BreakdownDonut({
               <Cell key={s.key} fill={s.color} />
             ))}
           </Pie>
+          {overlays.map((o) => (
+            <Pie
+              key={`hatch-${o.key}`}
+              data={[{ key: `hatch-${o.key}`, value: 1 }]}
+              dataKey="value"
+              startAngle={o.start}
+              endAngle={o.end}
+              innerRadius="62%"
+              outerRadius="100%"
+              fill="url(#employer-hatch)"
+              stroke="none"
+              isAnimationActive={false}
+              legendType="none"
+              tooltipType="none"
+              style={{ pointerEvents: "none" }}
+            />
+          ))}
         </PieChart>
       </ChartContainer>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
@@ -258,6 +314,22 @@ export function BreakdownDonut({
           </span>
         </li>
       ))}
+      {employerTotal > 0.005 && (
+        <li className="flex items-center gap-2 border-t pt-1">
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-[2px] bg-muted-foreground"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(45deg, rgba(255,255,255,0.8) 0 1.5px, transparent 1.5px 3.5px)",
+            }}
+          />
+          <span className="text-muted-foreground">{t("ch.employerShare")}</span>
+          <span className="ml-auto font-mono tabular-nums">{formatEUR(employerTotal)}</span>
+          <span className="w-9 text-right text-[10px] text-muted-foreground">
+            {formatShare(employerTotal, total)}
+          </span>
+        </li>
+      )}
     </ul>
     </div>
   );
