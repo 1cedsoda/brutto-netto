@@ -17,6 +17,7 @@ const BASE: ScenarioInput = {
   pensionInsured: true,
   minijob: false,
   selfEmployed: false,
+  rvCommission: false,
   rvProposal: "gruender",
   health: {
     kind: "gkv",
@@ -324,7 +325,14 @@ describe("currentTaxYear", () => {
 // ── Selbstständige: Vorschlag Rentenkommission ──────────────────────────
 describe("self-employed (Rentenkommission proposal, not law)", () => {
   const se = (patch: Partial<ScenarioInput> = {}) =>
-    calc({ selfEmployed: true, year: 2026, grossAmount: 4_000, ...patch });
+    calc({ selfEmployed: true, rvCommission: true, year: 2026, grossAmount: 4_000, ...patch });
+
+  it("switch off = current law: no pension contribution, not flagged", () => {
+    const r = se({ rvCommission: false });
+    expect(r.employeeSocial.rente.yearly).toBe(0);
+    expect(r.meta.proposal).toBe(false);
+    expect(r.meta.notes.join(" ")).not.toContain("VORSCHLAG");
+  });
 
   it("is flagged as proposal, no employer side", () => {
     const r = se();

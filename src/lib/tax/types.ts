@@ -89,6 +89,9 @@ export interface ScenarioInput {
    *  self-employed people as PROPOSED by the Rentenkommission (not current law).
    *  `grossAmount` is then the profit (Gewinn) before tax. */
   selfEmployed: boolean;
+  /** Self-employed: apply the Rentenkommission proposal (mandatory pension
+   *  insurance). Off = current law (no statutory pension insurance). */
+  rvCommission: boolean;
   /** Pension contribution variant of the Rentenkommission proposal */
   rvProposal: RvProposal;
   health: HealthInsurance;

@@ -7,11 +7,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { RotateCcw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { SliderInput } from "./SliderInput";
-import { useCalcStore, type ScenarioKey } from "@/lib/store";
+import { useCalcStore, type FormSection, type ScenarioKey } from "@/lib/store";
 import { useT, type Key } from "@/lib/i18n";
 import { STATES, KRANKENKASSEN, TAX_YEARS, type TaxYear } from "@/lib/tax/constants";
 import type {
@@ -52,12 +54,38 @@ function Row({ children }: { children: React.ReactNode }) {
   return <div className="grid grid-cols-2 gap-3">{children}</div>;
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+  onReset,
+  resetLabel,
+}: {
+  title: string;
+  children: React.ReactNode;
+  onReset?: () => void;
+  resetLabel?: string;
+}) {
   return (
     <section className="grid gap-3">
-      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
-        {title}
-      </h3>
+      <div className="flex min-h-6 items-center justify-between gap-2">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+          {title}
+        </h3>
+        {onReset && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 gap-1 px-1.5 text-[11px] font-normal text-muted-foreground hover:text-foreground"
+            onClick={onReset}
+            title={resetLabel}
+            aria-label={`${title}: ${resetLabel}`}
+          >
+            <RotateCcw className="h-3 w-3" />
+            {resetLabel}
+          </Button>
+        )}
+      </div>
       {children}
     </section>
   );
@@ -108,16 +136,20 @@ export function ScenarioForm({ scenarioKey }: { scenarioKey: ScenarioKey }) {
   });
 
   const id = (s: string) => `${scenarioKey}-${s}`;
+  const resetSection = useCalcStore((s) => s.resetSection);
+  const reset = (section: FormSection) => ({
+    onReset: () => resetSection(scenarioKey, section),
+    resetLabel: t("action.resetSection"),
+  });
 
   return (
     <form className="grid gap-5" onSubmit={(e) => e.preventDefault()}>
-      {/* ── Beschäftigung ─────────────────────────────────────── */}
-      <Section title={t("sec.employment")}>
+      {/* ── Person & Steuer ───────────────────────────────────── */}
+      <Section title={t("sec.personTax")} {...reset("personTax")}>
         <form.Subscribe
           selector={(s) => [s.values.minijob, s.values.selfEmployed] as const}
         >
           {([minijob, selfEmployed]) => (
-            <>
               <ToggleGroup
                 type="single"
                 value={selfEmployed ? "self" : minijob ? "minijob" : "employee"}
@@ -138,46 +170,8 @@ export function ScenarioForm({ scenarioKey }: { scenarioKey: ScenarioKey }) {
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
-              {selfEmployed && (
-                <div className="grid gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 p-3">
-                  <p className="text-[11px] leading-snug text-amber-700 dark:text-amber-500">
-                    {t("se.warning")}
-                  </p>
-                  <form.Field name="rvProposal">
-                    {(field) => (
-                      <div className="grid gap-1.5">
-                        <Label className="text-xs font-medium text-muted-foreground">
-                          {t("f.rvProposal")}
-                        </Label>
-                        <Select
-                          value={field.state.value}
-                          onValueChange={(v) => field.handleChange(v as RvProposal)}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {RV_PROPOSALS.map((p) => (
-                              <SelectItem key={p.value} value={p.value}>
-                                {t(p.key)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                  </form.Field>
-                </div>
-              )}
-            </>
           )}
         </form.Subscribe>
-      </Section>
-
-      <Separator />
-
-      {/* ── Person & Steuer ───────────────────────────────────── */}
-      <Section title={t("sec.personTax")}>
         <form.Field name="year">
           {(field) => (
             <div className="flex items-center justify-between gap-2">
@@ -296,7 +290,7 @@ export function ScenarioForm({ scenarioKey }: { scenarioKey: ScenarioKey }) {
       <Separator />
 
       {/* ── Einkommen ─────────────────────────────────────────── */}
-      <Section title={t("sec.income")}>
+      <Section title={t("sec.income")} {...reset("income")}>
         <form.Subscribe
           selector={(s) => [s.values.grossPeriod, s.values.selfEmployed] as const}
         >
@@ -336,7 +330,7 @@ export function ScenarioForm({ scenarioKey }: { scenarioKey: ScenarioKey }) {
       <Separator />
 
       {/* ── Sozialversicherung ────────────────────────────────── */}
-      <Section title={t("sec.social")}>
+      <Section title={t("sec.social")} {...reset("social")}>
         <form.Field name="health.kind">
           {(field) => (
             <div className="grid gap-1.5">
@@ -464,19 +458,77 @@ export function ScenarioForm({ scenarioKey }: { scenarioKey: ScenarioKey }) {
           }
         </form.Subscribe>
 
-        <form.Subscribe selector={(s) => s.values.selfEmployed}>
-          {(selfEmployed) =>
-            selfEmployed ? null : (
-            <form.Field name="pensionInsured">
-              {(field) => (
-                <SwitchRow
-                  id={id("pension")}
-                  label={t("f.pension")}
-                  checked={field.state.value}
-                  onChange={field.handleChange}
-                />
-              )}
-            </form.Field>
+        <form.Subscribe
+          selector={(s) => [s.values.selfEmployed, s.values.rvCommission] as const}
+        >
+          {([selfEmployed, rvCommission]) =>
+            !selfEmployed ? (
+              <form.Field name="pensionInsured">
+                {(field) => (
+                  <SwitchRow
+                    id={id("pension")}
+                    label={t("f.pension")}
+                    checked={field.state.value}
+                    onChange={field.handleChange}
+                  />
+                )}
+              </form.Field>
+            ) : (
+              <div
+                className={`grid gap-2 rounded-md border ${
+                  rvCommission ? "border-amber-500/40 bg-amber-500/5 p-3" : ""
+                }`}
+              >
+                <form.Field name="rvCommission">
+                  {(field) => (
+                    <div className={`flex items-center justify-between gap-3 ${rvCommission ? "" : "px-3 py-2"}`}>
+                      <Label htmlFor={id("rvCommission")} className="text-sm">
+                        {t("f.rvCommission")}
+                      </Label>
+                      <Switch
+                        id={id("rvCommission")}
+                        checked={field.state.value}
+                        onCheckedChange={field.handleChange}
+                      />
+                    </div>
+                  )}
+                </form.Field>
+                {rvCommission ? (
+                  <>
+                    <p className="text-[11px] leading-snug text-amber-700 dark:text-amber-500">
+                      {t("se.warning")}
+                    </p>
+                    <form.Field name="rvProposal">
+                      {(field) => (
+                        <div className="grid gap-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground">
+                            {t("f.rvProposal")}
+                          </Label>
+                          <Select
+                            value={field.state.value}
+                            onValueChange={(v) => field.handleChange(v as RvProposal)}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {RV_PROPOSALS.map((p) => (
+                                <SelectItem key={p.value} value={p.value}>
+                                  {t(p.key)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </form.Field>
+                  </>
+                ) : (
+                  <p className="px-3 pb-2 text-[11px] leading-snug text-muted-foreground">
+                    {t("se.currentLaw")}
+                  </p>
+                )}
+              </div>
             )
           }
         </form.Subscribe>
@@ -489,7 +541,7 @@ export function ScenarioForm({ scenarioKey }: { scenarioKey: ScenarioKey }) {
               <Separator />
 
             {/* ── Arbeitgeber ───────────────────────────────────────── */}
-            <Section title={t("sec.employer")}>
+            <Section title={t("sec.employer")} {...reset("employer")}>
               <form.Field name="employer.insolvenzgeld">
                 {(field) => (
                   <SwitchRow

@@ -73,10 +73,12 @@ export function calculateSelfEmployed(
 ): CalculationResult {
   const profit = Math.max(0, profitAnnual);
 
-  // ── Rente (Vorschlag) ──
-  const rvYearly = proposalPensionAnnual(input.rvProposal, profit, C);
-  const rvNote =
-    input.rvProposal === "regel"
+  // ── Rente: geltendes Recht (keine Pflicht) oder Vorschlag der Rentenkommission ──
+  const proposal = input.rvCommission;
+  const rvYearly = proposal ? proposalPensionAnnual(input.rvProposal, profit, C) : 0;
+  const rvNote = !proposal
+    ? "Geltendes Recht: keine Rentenversicherungspflicht (außer z. B. Lehrkräfte, Handwerker, KSK)"
+    : input.rvProposal === "regel"
       ? `Regelbeitrag ${eur(regelbeitragMonthly(C))} €/Monat (${C.rvRate} % × Bezugsgröße ${eur(C.bezugsgroesse)} €)`
       : input.rvProposal === "gruender"
         ? `Halber Regelbeitrag für Gründer:innen (erste 3 Jahre): ${eur(regelbeitragMonthly(C) / 2)} €/Monat`
@@ -123,7 +125,9 @@ export function calculateSelfEmployed(
   const zero = (key: string, label: string) => mk(key, label, 0);
 
   const notes = [
-    PROPOSAL_NOTE,
+    proposal
+      ? PROPOSAL_NOTE
+      : "Rentenversicherung: geltendes Recht – die meisten Selbstständigen sind nicht pflichtversichert, hier ohne Rentenbeitrag gerechnet.",
     ...baseNotes,
     "Selbstständig: Bruttoeinkommen = Gewinn vor Steuern; kein Arbeitgeberanteil, keine Arbeitslosenversicherung.",
     isGkv
@@ -131,7 +135,7 @@ export function calculateSelfEmployed(
       : "PKV: volle Prämie ohne Arbeitgeberzuschuss.",
     "Einkommensteuer ohne Gewerbesteuer (z. B. Freiberufler), Steuerklasse III = Splitting ohne Partnereinkommen.",
   ];
-  if (input.rvProposal === "gruender") {
+  if (proposal && input.rvProposal === "gruender") {
     notes.push(
       "Halber Regelbeitrag laut Vorschlag nur bei erstmaliger Gründung im Erwerbsleben und nur für drei Jahre.",
     );
@@ -148,10 +152,15 @@ export function calculateSelfEmployed(
       total: mk("tax-total", "Steuern gesamt", taxTotal),
     },
     employeeSocial: {
-      rente: mk("rv-an", "Rentenversicherung (Vorschlag Rentenkommission)", rvYearly, {
-        ratePct: input.rvProposal === "einkommen" ? C.rvRate : undefined,
+      rente: mk(
+        "rv-an",
+        proposal ? "Rentenversicherung (Vorschlag Rentenkommission)" : "Rentenversicherung",
+        rvYearly,
+        {
+        ratePct: proposal && input.rvProposal === "einkommen" ? C.rvRate : undefined,
         note: rvNote,
-      }),
+        },
+      ),
       arbeitslosen: zero("alv-an", "Arbeitslosenversicherung"),
       kranken: mk("kv-an", "Krankenversicherung", kvYearly, {
         ratePct: isGkv ? kvRate : undefined,
@@ -185,7 +194,7 @@ export function calculateSelfEmployed(
       vorsorgepauschale: vorsorge,
       approximate: false,
       provisional: C.provisional,
-      proposal: true,
+      proposal,
       selfEmployed: true,
       notes,
     },

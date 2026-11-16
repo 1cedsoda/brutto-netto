@@ -34,7 +34,7 @@ function inputsBlock(input: ScenarioInput): string {
     `Kirchensteuer: ${yn(input.church)}`,
     `Minijob: ${yn(input.minijob)}`,
     `Selbstständig: ${yn(input.selfEmployed)}${
-      input.selfEmployed
+      input.selfEmployed && input.rvCommission
         ? ` (Rente nach VORSCHLAG der Rentenkommission, kein geltendes Recht: ${
             { gruender: "halber Regelbeitrag", regel: "Regelbeitrag", einkommen: "einkommensbezogen" }[
               input.rvProposal

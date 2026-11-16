@@ -25,6 +25,7 @@ export const defaultScenario: ScenarioInput = {
   pensionInsured: true,
   minijob: false,
   selfEmployed: false,
+  rvCommission: false,
   rvProposal: "gruender",
   health: {
     kind: "gkv",
@@ -58,6 +59,40 @@ function withoutYear(sc: ScenarioInput): Omit<ScenarioInput, "year"> {
   return rest;
 }
 
+export type FormSection = "personTax" | "income" | "social" | "employer";
+
+/** Default values for the fields of one form section. */
+function sectionDefaults(section: FormSection, current: ScenarioInput): Partial<ScenarioInput> {
+  const d = defaultScenario;
+  switch (section) {
+    case "personTax":
+      return {
+        minijob: d.minijob,
+        selfEmployed: d.selfEmployed,
+        year: d.year,
+        steuerklasse: d.steuerklasse,
+        bundesland: d.bundesland,
+        age: d.age,
+        children: d.children,
+        church: d.church,
+      };
+    case "income":
+      // Keep the chosen period; convert the default monthly amount if needed.
+      return {
+        grossAmount: current.grossPeriod === "yearly" ? d.grossAmount * 12 : d.grossAmount,
+      };
+    case "social":
+      return {
+        health: { ...d.health },
+        pensionInsured: d.pensionInsured,
+        rvCommission: d.rvCommission,
+        rvProposal: d.rvProposal,
+      };
+    case "employer":
+      return { employer: { ...d.employer } };
+  }
+}
+
 interface CalcState {
   scenarioA: ScenarioInput;
   scenarioB: ScenarioInput;
@@ -78,6 +113,8 @@ interface CalcState {
   setScenario: (key: ScenarioKey, value: ScenarioInput) => void;
   /** Load the recommended defaults. */
   reset: (key: ScenarioKey) => void;
+  /** Reset the fields of a single form section to their defaults. */
+  resetSection: (key: ScenarioKey, section: FormSection) => void;
   /** Clear to a blank scenario. */
   clear: (key: ScenarioKey) => void;
   copyAToB: () => void;
@@ -106,6 +143,15 @@ export const useCalcStore = create<CalcState>()(
           [key === "A" ? "scenarioA" : "scenarioB"]: defaultScenario,
           formVersion: s.formVersion + 1,
         })),
+      resetSection: (key, section) =>
+        set((s) => {
+          const prop = key === "A" ? "scenarioA" : "scenarioB";
+          const current = s[prop];
+          return {
+            [prop]: { ...current, ...sectionDefaults(section, current) },
+            formVersion: s.formVersion + 1,
+          };
+        }),
       clear: (key) =>
         set((s) => ({
           [key === "A" ? "scenarioA" : "scenarioB"]: emptyScenario,
@@ -146,7 +192,7 @@ export const useCalcStore = create<CalcState>()(
     }),
     {
       name: "brutto-netto-2025",
-      version: 7,
+      version: 8,
       // The tax year is deliberately not persisted: every visit starts in the
       // current calendar year (see `merge`).
       partialize: (s) => ({
@@ -196,6 +242,7 @@ export const useCalcStore = create<CalcState>()(
             if (sc.selfEmployed === undefined) sc.selfEmployed = false;
             if (sc.rvProposal === undefined) sc.rvProposal = "gruender";
           }
+          if (version < 8 && sc.rvCommission === undefined) sc.rvCommission = false;
         };
         fix(s.scenarioA);
         fix(s.scenarioB);
